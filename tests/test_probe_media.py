@@ -40,7 +40,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", target)
             self.end_headers()
             return
-        if path in ("/expired", "/auth"):
+        if path in ("/expired", "/auth") or (head and path == "/head-denied"):
             self.send_response(410 if path == "/expired" else 403)
             self.end_headers()
             return
@@ -154,7 +154,13 @@ class ProbeTest(unittest.TestCase):
 
     def test_auth_and_expiry_stop_without_retry(self):
         for path in ("/auth", "/expired"):
-            self.assertEqual(len(probe.inspect_resource(self.base + path)["checks"]), 1)
+            self.assertEqual(len(probe.inspect_resource(self.base + path)["checks"]), 2)
+
+    def test_head_denial_does_not_prevent_get(self):
+        report = probe.inspect_resource(self.base + "/head-denied")
+        self.assertEqual(len(report["checks"]), 5)
+        self.assertEqual(report["checks"][0]["status"], 403)
+        self.assertEqual(report["bytes_read_total"], 4096)
 
     def test_if_range_can_legitimately_produce_200_and_is_a_separate_comparison(self):
         request = {"start": 2000, "end": 3023}

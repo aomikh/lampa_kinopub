@@ -4,6 +4,7 @@ test_auth_and_expiry_stop_without_retry (test_probe_media.ProbeTest.test_auth_an
 test_cli_uses_stdin_and_emits_only_sanitized_evidence (test_probe_media.ProbeTest.test_cli_uses_stdin_and_emits_only_sanitized_evidence) ... ok
 test_cross_origin_redirect_keeps_range_without_adding_credentials (test_probe_media.ProbeTest.test_cross_origin_redirect_keeps_range_without_adding_credentials) ... ok
 test_deadline_expires_without_request (test_probe_media.ProbeTest.test_deadline_expires_without_request) ... ok
+test_head_denial_does_not_prevent_get (test_probe_media.ProbeTest.test_head_denial_does_not_prevent_get) ... ok
 test_if_range_can_legitimately_produce_200_and_is_a_separate_comparison (test_probe_media.ProbeTest.test_if_range_can_legitimately_produce_200_and_is_a_separate_comparison) ... ok
 test_invalid_206_is_not_read (test_probe_media.ProbeTest.test_invalid_206_is_not_read) ... ok
 test_redirect_forwards_range_not_auth_and_redacts_paths (test_probe_media.ProbeTest.test_redirect_forwards_range_not_auth_and_redacts_paths) ... ok
@@ -14,6 +15,6 @@ test_valid_and_invalid_416 (test_probe_media.ProbeTest.test_valid_and_invalid_41
 test_wall_clock_interrupt_cancels_a_stalled_body_read (test_probe_media.ProbeTest.test_wall_clock_interrupt_cancels_a_stalled_body_read) ... ok
 
 ----------------------------------------------------------------------
-Ran 14 tests in 0.601s
+Ran 15 tests in 0.634s
 
 OK

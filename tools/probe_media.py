@@ -206,7 +206,8 @@ def inspect_resource(url, offset=None, if_range=None):
         h = result.get("headers", {})
         part = parse_range(h.get("Content-Range"))
         identity = (h.get("Content-Encoding") or "identity").lower() == "identity"
-        if method == "HEAD" and result.get("status") == 200 and identity:
+        error_type = h.get("Content-Type") in ("text/html", "application/json", "application/vnd.apple.mpegurl", "application/x-mpegurl")
+        if method == "HEAD" and result.get("status") == 200 and identity and not error_type:
             size = number(h.get("Content-Length"))
         if request and request.get("start") == 0 and not conditional:
             if identity and result.get("verdict") in ("headers-match", "headers-partial") and part["total"] is not None:
@@ -223,10 +224,9 @@ def inspect_resource(url, offset=None, if_range=None):
             else:
                 offset_note = "size unavailable; no guessed nonzero offset"
             queue.append(("GET", {"suffix": 1024}))
-        if (result.get("error") == "budget-exhausted" or result.get("status") in (401, 403, 404, 410) or
-            result.get("verdict") == "size-changed" or h.get("Content-Type") in
-                ("text/html", "application/json", "application/vnd.apple.mpegurl", "application/x-mpegurl") or
-            result.get("body_kind") in ("hls", "html-or-json")):
+        if (result.get("error") == "budget-exhausted" or (method == "GET" and
+            (result.get("status") in (401, 403, 404, 410) or result.get("verdict") == "size-changed" or
+             error_type or result.get("body_kind") in ("hls", "html-or-json")))):
             break
     return {"origin": origin(url), "checks": results, "offset_note": offset_note,
             "bytes_read_total": sum(r["bytes_read"] for r in results)}

@@ -94,6 +94,11 @@ test('size can be discovered by initial GET when HEAD is unavailable',async()=>{
   const {result}=await check(async(_url,options)=>options.method==='HEAD'?response(405):server(options,5000));
   assert.equal(result.length,5);assert.equal(result[2].requested,'bytes=2500-3523');
 });
+test('a HEAD-only access refusal does not prevent a valid GET probe',async()=>{
+  const {result}=await check(async(_url,options)=>options.method==='HEAD'?response(403,{'Content-Type':'text/html'}):server(options,5000));
+  assert.equal(result.length,5);assert.equal(result[0].status,403);
+  result.slice(1).forEach(r=>assert.equal(r.verdict,'headers-match'));
+});
 test('wrong Content-Range, malformed and inconsistent length fail without echoing unsafe header values',async()=>{
   for(const headers of [
     {'Content-Range':'bytes 0-1023/14620759377'},
@@ -119,7 +124,7 @@ test('changed representation stops the sequence instead of using stale size',asy
 test('denied/expired links and HTML error pages stop without retries or response text',async()=>{
   for(const status of [401,403,404,410,200]) {
     let calls=0;const {result}=await check(async()=>{calls++;return response(status,{'Content-Type':'text/html; charset=UTF-8'});});
-    assert.equal(calls,1);assert.equal(result[0].status,status);
+    assert.equal(calls,2);assert.equal(result[1].status,status);
   }
 });
 test('access can expire between a successful start range and a later request',async()=>{

@@ -381,7 +381,8 @@
         results.push(result);
         var range = parseProbeRange(result.range);
         var encoded = result.encoding && result.encoding !== 'identity';
-        if (!encoded && method === 'HEAD' && result.status === 200) size = probeNumber(result.length);
+        var errorType = /^(text\/html|application\/(json|vnd\.apple\.mpegurl|x-mpegurl))$/i.test(result.type || '');
+        if (!encoded && !errorType && method === 'HEAD' && result.status === 200) size = probeNumber(result.length);
         if (!encoded && method === 'GET' && request.start === 0 && result.status === 206 &&
             range && !range.unsatisfied && range.start === 0 && range.total !== null &&
             (result.verdict === 'headers-match' || result.verdict === 'headers-partial')) size = range.total;
@@ -396,9 +397,10 @@
         }
         // Auth/error-page responses and a changed representation need a new
         // ordinary launch, not repeated requests to the same unusable link.
-        if (result.status === 401 || result.status === 403 || result.status === 404 || result.status === 410 ||
-            /^(text\/html|application\/(json|vnd\.apple\.mpegurl|x-mpegurl))$/i.test(result.type || '') ||
-            result.verdict === 'size-changed') queue = [];
+        // Some CDNs forbid HEAD while allowing GET. Always try the first
+        // bounded GET before treating access denial as terminal.
+        if (method === 'GET' && (result.status === 401 || result.status === 403 || result.status === 404 ||
+            result.status === 410 || errorType || result.verdict === 'size-changed')) queue = [];
         if (queue.length) run();
         else { stopped = true; complete(results); }
       }
