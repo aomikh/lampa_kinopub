@@ -32,5 +32,13 @@
       "url": "https://aomikh.github.io/lampa_kinopub/releases/kp-1.0.73-mx.2.js",
       "status": 404
     }
-  ]
+  ],
+  "subsequent_device_evidence": {
+    "reported_at": "2026-10-04T14:40:32+05:00",
+    "loaded_plugin_version": "1.0.73-mx.4",
+    "lampa_app_digital": 335,
+    "diagnostic_ui_worked": true,
+    "continuous_playback_verified": false,
+    "report": "audit/device-diagnostic-20261004.json"
+  }
 }

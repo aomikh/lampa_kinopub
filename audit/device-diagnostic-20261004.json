@@ -1,0 +1,46 @@
+{
+  "reported_at": "2026-10-04T14:40:32+05:00",
+  "source": "user_supplied_photo_of_on_device_plugin_diagnostic",
+  "plugin_version": "1.0.73-mx.4",
+  "lampa_app_digital": 335,
+  "server_suffix": "ams-static-15.cdntogo.net",
+  "unique_hostname_prefix_retained": false,
+  "quality": "1080p",
+  "prepare_ms": 513,
+  "seconds_after_handoff": 193,
+  "head": {
+    "status": 200,
+    "headers_ms": 656,
+    "content_type": "video/mp4",
+    "content_length": 14620759377,
+    "accept_ranges": "bytes",
+    "content_range_visible": false
+  },
+  "range_get": {
+    "status": 206,
+    "headers_ms": 75,
+    "content_type": "video/mp4",
+    "content_length": 1024,
+    "content_range": "bytes 0-1023/14620759377",
+    "accept_ranges_visible": false
+  },
+  "response_bodies_read": false,
+  "throughput_measured": false,
+  "infuse_route_observed": false,
+  "lampa_mx_native_version_known": false,
+  "infuse_version_known": false,
+  "tvos_version_known": false,
+  "continuous_playback_verified": false,
+  "movie_title_explicitly_confirmed": false,
+  "interpretation": "Confirms mx.4 on device and a size/range-capable response from Lampa at this instant. Does not establish sustainable speed, arbitrary seek, later availability or the Infuse route.",
+  "shadowrocket_read_only": {
+    "repository": "aomikh/shadowrocket-configs",
+    "path": "ru_direct_runetfreedom_improved_final_autoupdate.conf",
+    "blob_sha": "22a7fd1ca7849e1e80c4f9e05ca2fcd70b237554",
+    "explicit_cdntogo_rule_present": false,
+    "final": "PROXY",
+    "device_active_profile_verified": false,
+    "modified": false
+  },
+  "next_controlled_check": "If Infuse Streaming Cache is Auto, try Limited with the same film/quality and record the result; revert if ineffective. Exact Infuse version and time of failure remain needed."
+}
