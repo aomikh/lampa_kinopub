@@ -7,6 +7,12 @@ function runtime(options = {}) {
   const storage = {kp_max_quality: '1080', kp_format: 'auto', player: 'inner', ...options.storage};
   const requests = [], launches = [], internal = [], playlists = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [], modals = [];
   const timers = new Map();
+  const mediaRequests = [];
+  class FakeXMLHttpRequest {
+    open(method, url) { this.method = method; this.url = url; }
+    send() { mediaRequests.push(this); }
+    abort() { this.aborted = true; }
+  }
   let timerId = 0;
   function setTimer(fn) { timers.set(++timerId, fn); return timerId; }
   function jq() {
@@ -52,7 +58,10 @@ function runtime(options = {}) {
       remove: (a,v) => a.splice(a.indexOf(v),1)},
     Platform: {is: p => p === (options.platform || 'apple_tv')},
     Noty: {show: text => notices.push(text)},
-    Player: {play: data => internal.push(data), playlist: list => playlists.push(list), runas() {}},
+    Player: {play: data => {
+      if (options.playerError) throw Error('fixture handoff error');
+      internal.push(data);
+    }, playlist: list => playlists.push(list), runas() {}},
     Scroll: moduleStub, Explorer: moduleStub, Filter: moduleStub,
     Template: {get(name, data, text) {
       if(text) return '<rate>'+data.rate+'</rate>';
@@ -65,7 +74,7 @@ function runtime(options = {}) {
     Activity: {active: () => ({})}, Favorite: {add() {}}, Helper: {show() {}}, Select: {show: menu => menus.push(menu)},
     Modal: {open: modal => modals.push(modal), close() {}}
   };
-  const sandbox = {URL, Image: FakeImage, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
+  const sandbox = {URL, Image: FakeImage, XMLHttpRequest: FakeXMLHttpRequest, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
     navigator: {userAgent: 'test'}, $, Lampa, document: {},
     setTimeout: setTimer, clearTimeout: id => timers.delete(id), setInterval: setTimer, clearInterval: id => timers.delete(id),
     window: {Lampa,innerWidth:1920, fetch:options.fetch, AbortController:globalThis.AbortController,
@@ -76,9 +85,9 @@ function runtime(options = {}) {
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
     'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic',
     'parseProbeRange','probeRangeVerdict','mountKinoPubCard','kinoPubCardButton'];
-  code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;}};');
+  code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;},getPendingVoice: function(){return pendingVoice;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
-  return {api: sandbox.window.testAPI, storage, requests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
+  return {api: sandbox.window.testAPI, storage, requests, mediaRequests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }
 module.exports = {runtime};

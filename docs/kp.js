@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.8';
+  var PLUGIN_VERSION  = '1.0.73-mx.9';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -1052,8 +1052,8 @@
   /**
    * BARE-mode diagnostic — fetch the master.m3u8 of the stream we're about to
    * play and log its key lines (#EXT-X-STREAM-INF for video levels with codecs
-   * and bitrates, #EXT-X-MEDIA for audio tracks). Read-only, doesn't affect
-   * playback. Helps identify whether kinopub is serving HEVC main10 vs AVC,
+   * and bitrates, #EXT-X-MEDIA for audio tracks). This adds a network request;
+   * Apple delegated players skip it. Helps identify HEVC main10 vs AVC,
    * how many audio tracks, what bitrates, etc.
    */
   function dumpStreamManifest(url) {
@@ -1877,6 +1877,15 @@
       if (!v) v = Lampa.Storage.get('player', '');
       return String(v || '').toLowerCase();
     } catch (e) { return ''; }
+  }
+
+  // Core 335 delegates these choices to the tvOS shell or another app.
+  // Keep its registered adapters; web/Tizen recovery and track hooks do not
+  // control these players. Infuse has its own signature-preserving path.
+  function isAppleDelegatedPlayer(player) {
+    return Lampa.Platform.is('apple_tv') &&
+      ['tvospro', 'tvos', 'tvosl', 'tvosselect', 'vlc', 'senplayer', 'vidhub', 'svplayer']
+        .indexOf(detectActualPlayer(player)) !== -1;
   }
 
   /**
@@ -3202,11 +3211,12 @@
 
     function toPlayElement(element, actualPlayer, targetQuality) {
       actualPlayer = detectActualPlayer(actualPlayer);
+      var delegated = isAppleDelegatedPlayer(actualPlayer);
       // A label generated for HLS (or URL-only metadata) is not an explicit
-      // Infuse quality choice. Resolve its maximum from actual direct files.
+      // quality choice. Resolve the maximum for the actual Apple destination.
       // Keep explicit context choices and legacy changed quality fields exact.
       var target = targetQuality;
-      if (target == null && !(actualPlayer === 'infuse' && element.quality === element._kpListedQuality)) target = element.quality;
+      if (target == null && !((actualPlayer === 'infuse' || delegated) && element.quality === element._kpListedQuality)) target = element.quality;
       var stream = streamForElement(element, target, actualPlayer);
       if (!stream) return null;
 
@@ -3233,6 +3243,13 @@
         timeline: element.timeline,
         callback: element.mark
       };
+
+      if (delegated) {
+        // Core Player.play otherwise replaces url from its remembered quality.
+        // A successful app handoff is not evidence that the film was watched.
+        delete play.quality;
+        delete play.callback;
+      }
 
       if (actualPlayer === 'infuse') {
         delete play.quality;
@@ -3296,13 +3313,14 @@
         pendingVoice = null;
         currentVoiceLabel = '';
       } else {
-        pendingVoice = (voiceIdx >= 0)
+        pendingVoice = (!delegated && voiceIdx >= 0)
           ? { idx: voiceIdx, label: pickedLabel, key: (choice && choice.voice_key) || '' }
           : null;
 
         // Keep the current-voice label fresh for the DOM override of
         // .player-panel__next-episode-name (see setupNextEpisodeLabelOverride).
-        if (pickedLabel) currentVoiceLabel = pickedLabel;
+        if (delegated) currentVoiceLabel = '';
+        else if (pickedLabel) currentVoiceLabel = pickedLabel;
 
         if (voiceIdx >= 0) {
           if (useManifestProxy(player) && audios.length > 0) {
@@ -3390,6 +3408,7 @@
         Lampa.Noty.show(Lampa.Lang.translate('kp_fallback') + ': ' + nxt.fmt);
         if (cb) cb(nxt.url);
       };
+      if (delegated) delete play.error;
 
       Logger.debug('player', 'play-element built', {
         title:    play.title,
@@ -3413,7 +3432,7 @@
         onEnter: function (item, html, options) {
           var actualPlayer = detectActualPlayer(options && options.player);
           if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality); return; }
-          var play = toPlayElement(item, actualPlayer);
+          var play = toPlayElement(item, actualPlayer, options && options.quality);
           if (!play) {
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
             return;
@@ -3422,7 +3441,7 @@
           var playlistSrc = []; // parallel array: source item per playlist entry
           if (item.season) {
             items.forEach(function (e) {
-              var p = toPlayElement(e, actualPlayer);
+              var p = toPlayElement(e, actualPlayer, e === item && options ? options.quality : undefined);
               if (p) { playlist.push(p); playlistSrc.push(e); }
             });
           } else {
@@ -3459,6 +3478,18 @@
 
           if (playlist.length > 1) play.playlist = playlist;
           Logger.info('player', 'launching', { url: play.url, playlist: playlist.length, title: play.title });
+          if (isAppleDelegatedPlayer(actualPlayer)) {
+            // The destination owns media requests. Do not fetch a manifest (or
+            // an entire http video) in parallel just to populate a debug log.
+            try {
+              Lampa.Player.play(play);
+              Lampa.Player.playlist(playlist);
+            } catch (e) {
+              Logger.warn('player', 'Apple handoff failed', { stage: 'KP-A1', player: actualPlayer });
+              Lampa.Noty.show(Lampa.Lang.translate('kp_player_handoff_error') + ' (KP-A1)');
+            }
+            return;
+          }
           // v1.0.29-diag: always dump manifest (was BARE-only). Need to see HLS2
           // master content — if it has #EXT-X-MEDIA AUDIO entries we can use
           // setSelectTrack/hls.audioTrack (Phase B on HLS2) without restart.
@@ -4773,6 +4804,7 @@
         ua: 'Дивитися на kinopub'
       },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
+      kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
       kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
       kp_infuse_check: { ru: 'Диагностика Infuse', en: 'Infuse diagnostics', ua: 'Діагностика Infuse' },
       kp_infuse_check_descr: { ru: 'Проверить доступность последнего файла после ошибки. Показывает безопасный отчёт для снимка экрана.',
