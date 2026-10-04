@@ -1,160 +1,256 @@
 TAP version 13
-# Subtest: TMDB frame has priority; missing still_path falls back to that episode thumbnail
-ok 1 - TMDB frame has priority; missing still_path falls back to that episode thumbnail
+# Subtest: diagnostic checks HEAD and small Range GET without credentials or reading a movie body
+ok 1 - diagnostic checks HEAD and small Range GET without credentials or reading a movie body
   ---
-  duration_ms: 7.114038
+  duration_ms: 17.452489
+  type: 'test'
+  ...
+# Subtest: server ignoring Range is reported as 200 and its full body is cancelled
+ok 2 - server ignoring Range is reported as 200 and its full body is cancelled
+  ---
+  duration_ms: 7.193595
+  type: 'test'
+  ...
+# Subtest: CORS or network rejection is never presented as proof the server is down in Infuse
+ok 3 - CORS or network rejection is never presented as proof the server is down in Infuse
+  ---
+  duration_ms: 3.272358
+  type: 'test'
+  ...
+# Subtest: probe has two bounded attempts and cancel suppresses late callbacks
+ok 4 - probe has two bounded attempts and cancel suppresses late callbacks
+  ---
+  duration_ms: 10.903052
+  type: 'test'
+  ...
+# Subtest: diagnostic is explicit, can close while loading, and displays no signed paths
+ok 5 - diagnostic is explicit, can close while loading, and displays no signed paths
+  ---
+  duration_ms: 4.281601
+  type: 'test'
+  ...
+# Subtest: unsupported shell reports limitation without starting playback or a request
+ok 6 - unsupported shell reports limitation without starting playback or a request
+  ---
+  duration_ms: 4.416894
+  type: 'test'
+  ...
+# Subtest: TMDB frame has priority; missing still_path falls back to that episode thumbnail
+ok 7 - TMDB frame has priority; missing still_path falls back to that episode thumbnail
+  ---
+  duration_ms: 9.537401
   type: 'test'
   ...
 # Subtest: confirmed thumbnail string and relative media base are handled without casting opaque objects
-ok 2 - confirmed thumbnail string and relative media base are handled without casting opaque objects
+ok 8 - confirmed thumbnail string and relative media base are handled without casting opaque objects
   ---
-  duration_ms: 2.150266
+  duration_ms: 2.799104
   type: 'test'
   ...
 # Subtest: load failure and timeout advance once; two unavailable images finish as a placeholder
-ok 3 - load failure and timeout advance once; two unavailable images finish as a placeholder
+ok 9 - load failure and timeout advance once; two unavailable images finish as a placeholder
   ---
-  duration_ms: 5.192408
+  duration_ms: 7.14452
   type: 'test'
   ...
 # Subtest: late image event is ignored after cancellation or after moving to the fallback
-ok 4 - late image event is ignored after cancellation or after moving to the fallback
+ok 10 - late image event is ignored after cancellation or after moving to the fallback
   ---
-  duration_ms: 2.971686
+  duration_ms: 7.103885
   type: 'test'
   ...
 # Subtest: numeric episode identifiers match exactly within the right season
-ok 5 - numeric episode identifiers match exactly within the right season
+ok 11 - numeric episode identifiers match exactly within the right season
   ---
-  duration_ms: 2.669459
+  duration_ms: 2.766654
   type: 'test'
   ...
 # Subtest: source retains thumbnail across extractData and filtered card creation
-ok 6 - source retains thumbnail across extractData and filtered card creation
+ok 12 - source retains thumbnail across extractData and filtered card creation
   ---
-  duration_ms: 5.594143
+  duration_ms: 3.95674
   type: 'test'
   ...
 # Subtest: KinoPub identity cannot be sent as a TMDB identifier; a different selected series uses KP only
-ok 7 - KinoPub identity cannot be sent as a TMDB identifier; a different selected series uses KP only
+ok 13 - KinoPub identity cannot be sent as a TMDB identifier; a different selected series uses KP only
   ---
-  duration_ms: 2.291799
+  duration_ms: 1.682308
   type: 'test'
   ...
 # Subtest: cards render before one season request finishes and are enriched in place
-ok 8 - cards render before one season request finishes and are enriched in place
+ok 14 - cards render before one season request finishes and are enriched in place
   ---
-  duration_ms: 4.914628
+  duration_ms: 4.73201
   type: 'test'
   ...
 # Subtest: rapid season switch rejects old metadata and image callbacks
-ok 9 - rapid season switch rejects old metadata and image callbacks
+ok 15 - rapid season switch rejects old metadata and image callbacks
   ---
-  duration_ms: 2.365731
+  duration_ms: 2.291998
   type: 'test'
   ...
 # Subtest: closing component clears image and season timers and prevents late writes
-ok 10 - closing component clears image and season timers and prevents late writes
+ok 16 - closing component clears image and season timers and prevents late writes
   ---
-  duration_ms: 1.873758
+  duration_ms: 2.215243
   type: 'test'
   ...
 # Subtest: temporary season failures are retried; valid season result is cached once per season
-ok 11 - temporary season failures are retried; valid season result is cached once per season
+ok 17 - temporary season failures are retried; valid season result is cached once per season
   ---
-  duration_ms: 1.608308
+  duration_ms: 2.333841
   type: 'test'
   ...
 # Subtest: both absent sources show the episode number without requesting a broken image
-ok 12 - both absent sources show the episode number without requesting a broken image
+ok 18 - both absent sources show the episode number without requesting a broken image
   ---
-  duration_ms: 2.935611
+  duration_ms: 2.370948
   type: 'test'
   ...
 # Subtest: context menu one-off Infuse is explicit and does not overwrite player settings
-ok 13 - context menu one-off Infuse is explicit and does not overwrite player settings
+ok 19 - context menu one-off Infuse is explicit and does not overwrite player settings
   ---
-  duration_ms: 3.250446
+  duration_ms: 3.050844
   type: 'test'
   ...
 # Subtest: Infuse selects a real http field; Tizen retains HLS4 proxy and HLS2 fallback
-ok 14 - Infuse selects a real http field; Tizen retains HLS4 proxy and HLS2 fallback
+ok 20 - Infuse selects a real http field; Tizen retains HLS4 proxy and HLS2 fallback
   ---
-  duration_ms: 7.469775
+  duration_ms: 14.645639
   type: 'test'
   ...
 # Subtest: explicit HLS2 wins over a healthy proxy; non-Tizen stays out of the reducer
-ok 15 - explicit HLS2 wins over a healthy proxy; non-Tizen stays out of the reducer
+ok 21 - explicit HLS2 wins over a healthy proxy; non-Tizen stays out of the reducer
   ---
-  duration_ms: 5.108822
+  duration_ms: 10.207322
   type: 'test'
   ...
 # Subtest: one-off Infuse is chosen before format and does not change the saved player
-ok 16 - one-off Infuse is chosen before format and does not change the saved player
+ok 22 - one-off Infuse is chosen before format and does not change the saved player
   ---
-  duration_ms: 3.766926
+  duration_ms: 6.027125
   type: 'test'
   ...
 # Subtest: signed query and path survive exactly one layer of encoding; play has no playlist parameter
-ok 17 - signed query and path survive exactly one layer of encoding; play has no playlist parameter
+ok 23 - signed query and path survive exactly one layer of encoding; play has no playlist parameter
   ---
-  duration_ms: 3.124866
+  duration_ms: 4.576376
   type: 'test'
   ...
 # Subtest: no direct resource or selected quality fails without substituting HLS or another quality
-ok 18 - no direct resource or selected quality fails without substituting HLS or another quality
+ok 24 - no direct resource or selected quality fails without substituting HLS or another quality
   ---
-  duration_ms: 2.178278
+  duration_ms: 4.378166
   type: 'test'
   ...
 # Subtest: episode list is refreshed once; every transferred resource is a direct file
-ok 19 - episode list is refreshed once; every transferred resource is a direct file
+ok 25 - episode list is refreshed once; every transferred resource is a direct file
   ---
-  duration_ms: 4.101761
+  duration_ms: 4.497065
   type: 'test'
   ...
 # Subtest: dispatch error has no retry and no mark; closed source rejects late refresh
-ok 20 - dispatch error has no retry and no mark; closed source rejects late refresh
+ok 26 - dispatch error has no retry and no mark; closed source rejects late refresh
   ---
-  duration_ms: 2.381004
+  duration_ms: 3.508615
   type: 'test'
   ...
 # Subtest: identity mismatch and hung refresh cannot launch stale media
-ok 21 - identity mismatch and hung refresh cannot launch stale media
+ok 27 - identity mismatch and hung refresh cannot launch stale media
   ---
-  duration_ms: 3.762108
+  duration_ms: 4.091874
   type: 'test'
   ...
 # Subtest: diagnostics redact nested URL paths, encoded URL values, token keys and manifest content
-ok 22 - diagnostics redact nested URL paths, encoded URL values, token keys and manifest content
+ok 28 - diagnostics redact nested URL paths, encoded URL values, token keys and manifest content
   ---
-  duration_ms: 1.902352
+  duration_ms: 2.110414
   type: 'test'
   ...
 # Subtest: Tizen launch still wraps the current episode and every playlist entry
-ok 23 - Tizen launch still wraps the current episode and every playlist entry
+ok 29 - Tizen launch still wraps the current episode and every playlist entry
   ---
-  duration_ms: 2.56441
+  duration_ms: 2.732283
   type: 'test'
   ...
 # Subtest: one-off internal player remains internal when the saved player is Infuse
-ok 24 - one-off internal player remains internal when the saved player is Infuse
+ok 30 - one-off internal player remains internal when the saved player is Infuse
   ---
-  duration_ms: 2.843031
+  duration_ms: 2.398399
   type: 'test'
   ...
 # Subtest: an oversized selected link is rejected rather than playing a later episode
-ok 25 - an oversized selected link is rejected rather than playing a later episode
+ok 31 - an oversized selected link is rejected rather than playing a later episode
   ---
-  duration_ms: 1.94788
+  duration_ms: 2.167771
   type: 'test'
   ...
-1..25
-# tests 25
+# Subtest: movie resolves the exact selected file with type=http before opening Infuse
+ok 32 - movie resolves the exact selected file with type=http before opening Infuse
+  ---
+  duration_ms: 3.757891
+  type: 'test'
+  ...
+# Subtest: file references without item URLs resolve without constructing a media address
+ok 33 - file references without item URLs resolve without constructing a media address
+  ---
+  duration_ms: 2.486441
+  type: 'test'
+  ...
+# Subtest: resolver error never reuses the old movie URL and reports a safe stage/status
+ok 34 - resolver error never reuses the old movie URL and reports a safe stage/status
+  ---
+  duration_ms: 2.237616
+  type: 'test'
+  ...
+# Subtest: resolver timeout or closing a card suppresses late results
+ok 35 - resolver timeout or closing a card suppresses late results
+  ---
+  duration_ms: 4.494432
+  type: 'test'
+  ...
+# Subtest: duplicate presses and callbacks cannot create repeated resolver requests or launches
+ok 36 - duplicate presses and callbacks cannot create repeated resolver requests or launches
+  ---
+  duration_ms: 2.005365
+  type: 'test'
+  ...
+# Subtest: resolver cannot send a manifest, reducer or malformed response to Infuse
+ok 37 - resolver cannot send a manifest, reducer or malformed response to Infuse
+  ---
+  duration_ms: 8.252382
+  type: 'test'
+  ...
+# Subtest: selected episode in the playlist uses its resolved URL; later direct URLs stay intact
+ok 38 - selected episode in the playlist uses its resolved URL; later direct URLs stay intact
+  ---
+  duration_ms: 2.901318
+  type: 'test'
+  ...
+# Subtest: invalid selected resource cannot skip ahead to another episode
+ok 39 - invalid selected resource cannot skip ahead to another episode
+  ---
+  duration_ms: 1.878725
+  type: 'test'
+  ...
+# Subtest: loaded movie with a file reference needs only one request before Infuse dispatch
+ok 40 - loaded movie with a file reference needs only one request before Infuse dispatch
+  ---
+  duration_ms: 2.089563
+  type: 'test'
+  ...
+# Subtest: fast movie launch remains cancellable and never retries old media on timeout
+ok 41 - fast movie launch remains cancellable and never retries old media on timeout
+  ---
+  duration_ms: 2.533172
+  type: 'test'
+  ...
+1..41
+# tests 41
 # suites 0
-# pass 25
+# pass 41
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 122.032224
+# duration_ms 191.79072

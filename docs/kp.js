@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.3';
+  var PLUGIN_VERSION  = '1.0.73-mx.4';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -96,6 +96,8 @@
   var KEY_FORMAT      = 'kp_format';
   var KEY_PROXY       = 'kp_proxy';
   var KEY_SUBS        = 'kp_subtitles_enabled';
+  // Kept only in this JS session, never in storage or a remote diagnostic.
+  var lastInfuseAttempt = null;
 
   // Never log URL paths: KinoPub can carry the credential in the path as
   // well as the query. This affects diagnostics only, never the media URL.
@@ -283,6 +285,8 @@
     // Same scheme dispatch used by Lampa's external adapter. Its current
     // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
     try {
+      lastInfuseAttempt = { url: play.url, at: Date.now(), quality: play._kpQuality,
+        prepareMs: play._kpPrepareMs };
       window.location.assign(url);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
         resource: resourceInfo(play.url), deliveryField: 'http', quality: play._kpQuality,
@@ -294,6 +298,86 @@
       Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_handoff_error'));
       return false;
     }
+  }
+
+  // Explicit diagnostic only: never delays playback. Fetch headers and abort
+  // each body immediately, including when the server ignores Range. Browser
+  // CORS failures cannot establish that the same resource fails in Infuse.
+  function probeInfuseResource(url, complete) {
+    var stopped = false, controller = null, timer = null, results = [];
+    function cancel() {
+      stopped = true;
+      clearTimeout(timer);
+      if (controller) controller.abort();
+    }
+    if (!infuseFileUrl(url) || !window.fetch || !window.AbortController) {
+      complete([{ error: 'unsupported' }]);
+      return cancel;
+    }
+    function run(method) {
+      if (stopped) return;
+      var started = Date.now(), settled = false;
+      var current = controller = new window.AbortController();
+      function finish(result) {
+        if (settled || stopped) return;
+        settled = true;
+        clearTimeout(timer);
+        current.abort();
+        result.method = method;
+        result.ms = Date.now() - started;
+        results.push(result);
+        if (method === 'HEAD') run('GET');
+        else { stopped = true; complete(results); }
+      }
+      timer = setTimeout(function () { finish({ error: 'timeout' }); }, 6000);
+      var options = { method: method, credentials: 'omit', cache: 'no-store',
+        redirect: 'follow', signal: current.signal };
+      if (method === 'GET') options.headers = { Range: 'bytes=0-1023' };
+      try {
+        window.fetch(url, options).then(function (response) {
+          // Do not read a response body or log exception/response text.
+          if (response.body && response.body.cancel) response.body.cancel().catch(function () {});
+          if (stopped || settled) return;
+          function header(name, pattern) {
+            var value = response.headers.get(name) || '';
+            return pattern.test(value) ? value : null;
+          }
+          finish({ status: response.status, host: resourceInfo(response.url).host,
+            redirected: !!response.redirected,
+            type: header('Content-Type', /^[\w.+-]+\/[\w.+-]+(?:; charset=[\w-]+)?$/i),
+            length: header('Content-Length', /^\d+$/),
+            range: header('Content-Range', /^bytes \d+-\d+\/(?:\d+|\*)$/),
+            acceptRanges: header('Accept-Ranges', /^(bytes|none)$/) });
+        }, function () { finish({ error: 'network-or-cors' }); });
+      } catch (e) { finish({ error: 'unsupported' }); }
+    }
+    run('HEAD');
+    return cancel;
+  }
+
+  function showInfuseDiagnostic() {
+    if (!lastInfuseAttempt) { Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_check_empty')); return; }
+    var attempt = lastInfuseAttempt;
+    var enabled = Lampa.Controller.enabled().name;
+    var body = $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' });
+    var summary = 'KinoPub ' + PLUGIN_VERSION + ' / Lampa ' + (Lampa.Manifest.app_digital || '?') +
+      '\n' + resourceInfo(attempt.url).host + ' / ' + (attempt.quality || '?') + 'p' +
+      '\n' + Lampa.Lang.translate('kp_infuse_prepare') + ': ' + (attempt.prepareMs == null ? '?' : attempt.prepareMs) + ' ms' +
+      '\n' + Lampa.Lang.translate('kp_infuse_link_age') + ': ' + Math.floor((Date.now() - attempt.at) / 1000) + ' s';
+    body.text(summary + '\n' + Lampa.Lang.translate('kp_infuse_check_running'));
+    var stop = function () {};
+    Lampa.Modal.open({ title: Lampa.Lang.translate('kp_infuse_check'), html: body, size: 'medium',
+      onBack: function () { stop(); Lampa.Modal.close(); Lampa.Controller.toggle(enabled); } });
+    stop = probeInfuseResource(attempt.url, function (results) {
+      var rows = results.map(function (r) {
+        if (r.error) return (r.method || '') + ': ' + Lampa.Lang.translate('kp_infuse_probe_' + r.error);
+        return r.method + ': HTTP ' + r.status + ' / ' + r.ms + ' ms\n' +
+          (r.host || '?') + (r.redirected ? ' (redirect)' : '') + '\n' +
+          'Type: ' + (r.type || '?') + ' / Length: ' + (r.length || '?') + '\n' +
+          'Range: ' + (r.range || '?') + ' / Accept-Ranges: ' + (r.acceptRanges || '?');
+      });
+      body.text(summary + '\n\n' + rows.join('\n\n') + '\n\n' + Lampa.Lang.translate('kp_infuse_check_limits'));
+    });
   }
 
   /* ============================================================ *
@@ -2642,6 +2726,7 @@
       var generation = ++infuseGeneration;
       var kpId = raw.id;
       var stage = 'item';
+      var started = Date.now();
       Logger.info('infuse', 'refreshing KinoPub links', { season: item.season, episode: item.episode });
       function fail(reason, status) {
         if (generation !== infuseGeneration || !infuseLaunching) return;
@@ -2659,6 +2744,33 @@
           fail('link refresh timed out');
           infuseNetwork.clear();
         }, 18000);
+      }
+      function submit(play) {
+        stage = 'file';
+        function handoff(url) {
+          if (generation !== infuseGeneration || !infuseLaunching) return;
+          if (!infuseFileUrl(url)) { fail('file resolver returned no direct resource'); return; }
+          play.url = url;
+          play._kpPrepareMs = Date.now() - started;
+          infuseLaunching = false;
+          clearTimeout(infuseTimer);
+          dispatchInfuse(play);
+        }
+        if (play._kpFile) {
+          Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
+          armTimeout();
+          KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
+            if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
+            handoff(result && result.url);
+          }, function (xhr) { fail('direct file resolution failed', xhr && xhr.status); });
+        } else handoff(play.url);
+      }
+      // The loaded card already identifies the selected movie file. Resolve
+      // that exact file once, without fetching the same item a second time.
+      // Episodes retain their item refresh for the upcoming playlist.
+      if (item.kp.kind === 'movie') {
+        var selectedMovie = toPlayElement(item, 'infuse');
+        if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
       }
       armTimeout();
       KP.item(infuseNetwork, kpId, function (json) {
@@ -2698,26 +2810,8 @@
             else incomplete = true;
           });
         play.playlist = playlist;
-        function handoff(url) {
-          if (generation !== infuseGeneration || !infuseLaunching) return;
-          if (!infuseFileUrl(url)) { fail('file resolver returned no direct resource'); return; }
-          play.url = url;
-          infuseLaunching = false;
-          clearTimeout(infuseTimer);
-          dispatchInfuse(play);
-        }
-        if (play._kpFile) {
-          Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
-          armTimeout();
-          KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
-            if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
-            handoff(result && result.url);
-          }, function (xhr) { fail('direct file resolution failed', xhr && xhr.status); });
-        } else {
-          // Older responses may contain only URLs. Their fresh http field is
-          // the sole supported fallback; no invented file identifier.
-          handoff(play.url);
-        }
+        // Old URL-only movie responses still need the item refresh.
+        submit(play);
         // Handoff is not a viewing event. No mark(), watched(), timeline
         // update or internal Lampa player hooks are run for Infuse.
       }, function (xhr) { fail('link refresh failed', xhr && xhr.status); });
@@ -4401,6 +4495,13 @@
 
     Lampa.SettingsApi.addParam({
       component: 'kp',
+      param: { name: 'kp_action_infuse_check', type: 'trigger', "default": false },
+      field: { name: Lampa.Lang.translate('kp_infuse_check'), description: Lampa.Lang.translate('kp_infuse_check_descr') },
+      onChange: showInfuseDiagnostic
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: 'kp',
       param: { name: 'kp_action_logout', type: 'trigger', "default": false },
       field: { name: Lampa.Lang.translate('kp_set_logout'), description: Lampa.Lang.translate('kp_set_logout_descr') },
       onChange: function () {
@@ -4477,6 +4578,21 @@
         ua: 'Дивитися на kinopub'
       },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
+      kp_infuse_check: { ru: 'Диагностика Infuse', en: 'Infuse diagnostics', ua: 'Діагностика Infuse' },
+      kp_infuse_check_descr: { ru: 'Проверить доступность последнего файла после ошибки. Показывает безопасный отчёт для снимка экрана.',
+        en: 'Check the last file after an error. Shows a safe report for a screenshot.', ua: 'Перевірити останній файл після помилки.' },
+      kp_infuse_check_empty: { ru: 'Сначала запустите фильм через Infuse в этой сессии Lampa.',
+        en: 'First launch a movie through Infuse in this Lampa session.', ua: 'Спочатку запустіть фільм через Infuse.' },
+      kp_infuse_prepare: { ru: 'Подготовка ссылки', en: 'Link preparation', ua: 'Підготовка посилання' },
+      kp_infuse_link_age: { ru: 'После передачи ссылки', en: 'Time since handoff', ua: 'Після передачі посилання' },
+      kp_infuse_check_running: { ru: 'Проверка сервера (до 12 секунд)…', en: 'Checking server (up to 12 seconds)…', ua: 'Перевірка сервера…' },
+      kp_infuse_probe_timeout: { ru: 'нет ответа за 6 секунд из Lampa', en: 'no response in 6 seconds from Lampa', ua: 'немає відповіді за 6 секунд із Lampa' },
+      'kp_infuse_probe_network-or-cors': { ru: 'сеть или запрет CORS в Lampa; результат для Infuse неизвестен',
+        en: 'network or Lampa CORS restriction; Infuse result unknown', ua: 'мережа або CORS у Lampa; результат для Infuse невідомий' },
+      kp_infuse_probe_unsupported: { ru: 'оболочка не поддерживает эту проверку', en: 'this shell cannot run the probe', ua: 'оболонка не підтримує перевірку' },
+      kp_infuse_check_limits: { ru: 'Проверены только заголовки из Lampa. ? — заголовок отсутствует или скрыт CORS. Скорость, весь фильм и маршрут Infuse не проверены. Ссылки и токены скрыты.',
+        en: 'Headers checked from Lampa only. ? means missing or CORS-hidden. Speed, full movie and Infuse route are untested. URLs and tokens are hidden.',
+        ua: 'Перевірено лише заголовки з Lampa. Швидкість, весь фільм і маршрут Infuse не перевірені. Посилання й токени приховані.' },
       kp_infuse_no_file: {
         ru: 'Не удалось получить прямой файл KinoPub в выбранном качестве. Повторите запуск или выберите доступное качество.',
         en: 'No fresh direct KinoPub file at the selected quality. Retry or choose an available quality.',

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 
 function runtime(options = {}) {
   const storage = {kp_max_quality: '1080', kp_format: 'auto', player: 'inner', ...options.storage};
-  const requests = [], launches = [], internal = [], playlists = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [];
+  const requests = [], launches = [], internal = [], playlists = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [], modals = [];
   const timers = new Map();
   let timerId = 0;
   function setTimer(fn) { timers.set(++timerId, fn); return timerId; }
@@ -62,20 +62,22 @@ function runtime(options = {}) {
     }}, TMDB: {key: () => 'public-test-key', api: u => 'https://tmdb.example/' + u, image: u => 'https://image.example/' + u},
     Timeline: {view: () => ({time: 37,percent: 0}), render: jq, update() {}},
     Controller: {enable() {}, enabled: () => ({name:'content'}), toggle() {}},
-    Activity: {active: () => ({})}, Favorite: {add() {}}, Helper: {show() {}}, Select: {show: menu => menus.push(menu)}
+    Activity: {active: () => ({})}, Favorite: {add() {}}, Helper: {show() {}}, Select: {show: menu => menus.push(menu)},
+    Modal: {open: modal => modals.push(modal), close() {}}
   };
   const sandbox = {URL, Image: FakeImage, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
     navigator: {userAgent: 'test'}, $, Lampa, document: {},
     setTimeout: setTimer, clearTimeout: id => timers.delete(id), setInterval: setTimer, clearInterval: id => timers.delete(id),
-    window: {Lampa,innerWidth:1920, addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
+    window: {Lampa,innerWidth:1920, fetch:options.fetch, AbortController:globalThis.AbortController,
+      addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
   function $(arg) {return jq(arg);}
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
   const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
-    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates'];
+    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
-  return {api: sandbox.window.testAPI, storage, requests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus,
+  return {api: sandbox.window.testAPI, storage, requests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }
 module.exports = {runtime};

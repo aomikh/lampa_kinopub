@@ -1,0 +1,22 @@
+{
+  "prepared_at_utc": "2026-10-04T09:30:03.296271+00:00",
+  "version": "1.0.73-mx.4",
+  "baseline_commit": "009faf935973bb6a0b8070047287bc79fe7c6d38",
+  "bytes": 224473,
+  "sha256": "2cabdbf27cc1d4ea8ebf637ab5f18e236aed8a5f3d684c5e154774d5dbb5574c",
+  "tests_passed": 41,
+  "smoke_checks_passed": 20,
+  "startup_regression_failed_on_mx3": true,
+  "device_playback_tested": false,
+  "authenticated_media_tested": false,
+  "buffering_root_cause_confirmed": false,
+  "own_remote_branches_before": [
+    "main"
+  ],
+  "local_branches_after": [
+    "main"
+  ],
+  "deleted_published_files": [
+    "docs/releases/kp-1.0.73-mx.2.js"
+  ]
+}

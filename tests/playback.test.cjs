@@ -219,3 +219,31 @@ test('invalid selected resource cannot skip ahead to another episode', () => {
   play.playlist=[play,{_kpInfuse:true,url:signed}];
   assert.equal(rt.api.buildInfuseUrl(play),null);
 });
+
+test('loaded movie with a file reference needs only one request before Infuse dispatch', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {src,view,item}=movieWithFile(rt);
+  // Reopen using metadata which contains actual file references from the start.
+  src.find(22);rt.requests.at(-1).ok({item});
+  view.items[0].quality='720p';
+  const before=rt.requests.length;
+  view.options.onEnter(view.items[0]);
+  const resolve=rt.requests.at(-1), u=new URL(resolve.url);
+  assert.equal(u.pathname,'/v1/items/media-video-link');
+  assert.equal(u.searchParams.get('file'),'/private-fixture/file-720.mp4');
+  assert.equal(rt.launches.length,0);
+  resolve.ok({url:signed});
+  assert.equal(rt.requests.length-before,1);
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed);
+  assert.equal(rt.internal.length,0);
+});
+test('fast movie launch remains cancellable and never retries old media on timeout', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {src,view,item}=movieWithFile(rt,{noLinks:true});
+  src.find(22);rt.requests.at(-1).ok({item});
+  view.options.onEnter(view.items[0]);const resolve=rt.requests.at(-1);
+  assert.match(resolve.url,/media-video-link/);
+  rt.tickAll();resolve.ok({url:signed});
+  assert.equal(rt.launches.length,0);
+  assert.match(rt.notices.at(-1),/KP-I2/);
+});
