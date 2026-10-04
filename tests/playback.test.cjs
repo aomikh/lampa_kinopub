@@ -341,3 +341,20 @@ test('fast movie launch remains cancellable and never retries old media on timeo
   assert.equal(rt.launches.length,0);
   assert.match(rt.notices.at(-1),/KP-I2/);
 });
+
+test('after Infuse handoff, pending timers, proxy state and source teardown do not reopen or replace media', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {src,view,item}=movieWithFile(rt);
+  src.find(22); rt.requests.at(-1).ok({item});
+  let marks=0; view.items[0].mark=()=>marks++;
+  view.items[0].timeline={time:37,percent:1};
+  view.options.onEnter(view.items[0]); rt.requests.at(-1).ok({url:signed});
+  const launch=rt.launches[0], requestCount=rt.requests.length;
+  const data=new URL(launch).searchParams;
+  assert.equal(data.get('url'),signed); assert.equal(data.get('position'),'37');
+  for(const health of [true,false,true]) {rt.api.setProxy(health);rt.tickAll();}
+  src.destroy(); rt.tickAll();
+  assert.equal(rt.launches.length,1); assert.equal(rt.launches[0],launch);
+  assert.equal(rt.requests.length,requestCount); assert.equal(rt.internal.length,0);
+  assert.equal(marks,0); assert.equal(rt.notices.length,0);
+});

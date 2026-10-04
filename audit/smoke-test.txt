@@ -1,4 +1,4 @@
-[KP:boot] kp.js v1.0.73-mx.7 starting { session: 'uuuuuuuu', app: 200, ua: 'node-smoke' }
+[KP:boot] kp.js v1.0.73-mx.8 starting { session: 'uuuuuuuu', app: 200, ua: 'node-smoke' }
 [KP:auth] no token at startup
 [KP:boot] kp.js initialized
 OK   manifest set

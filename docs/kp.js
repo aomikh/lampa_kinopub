@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.7';
+  var PLUGIN_VERSION  = '1.0.73-mx.8';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -4701,11 +4701,14 @@
     if (!holder || !holder.find) return;
     var start = e.link && e.link.items && e.link.items[0];
     if (start && start._kpCardControls && typeof start.unuse === 'function') {
+      if (start._kpCardControls.onDestroy) start._kpCardControls.onDestroy();
       start.unuse(start._kpCardControls);
       start._kpCardControls = null;
     }
     holder.find('.view--kinopub, .kp-card-direct').remove();
+    var alive = true;
     function open() {
+      if (!alive) return;
       resetTemplates();
       Lampa.Component.add(COMPONENT_NAME, component);
       launchActivity(movie);
@@ -4713,27 +4716,35 @@
     var source = kinoPubCardButton('view--online view--kinopub').on('hover:enter', open);
     var sources = holder.find('.buttons--container').first();
     var visible = holder.find('.full-start-new__buttons, .full-start__buttons').first();
+    var watch = holder.find('.button--play').first();
+    var directWatch = Lampa.Platform.is('apple_tv') && watch.length;
     if (sources.length) {
       // Lampa 335 groups these direct children under Watch -> Sources.
       sources.append(source);
-      if (Lampa.Platform.is('apple_tv') && visible.length) {
-        var direct = kinoPubCardButton('kp-card-direct').on('hover:enter', open);
-        visible.append(direct);
-        function syncPinned() {
-          direct.toggleClass('hide', !!visible.find('.button--priority.view--kinopub').length);
-        }
-        // Core emits these after grouping/pinning. No polling or global handler.
-        if (start && typeof start.use === 'function' && typeof start.unuse === 'function') {
-          start._kpCardControls = { onGroupButtons: syncPinned, onPriorityButton: syncPinned };
-          start.use(start._kpCardControls);
-        }
-        syncPinned();
-      }
-    } else if (visible.length) {
-      // Older layouts have no hidden source container; keep one visible entry.
+    } else if (!directWatch && visible.length) {
+      // Layouts without a Watch button retain the original source entry.
       visible.append(source);
-    } else {
+    } else if (!directWatch) {
       holder.find('.full-start__button').first().after(source);
+    }
+    if (directWatch) {
+      var bindWatch = function () {
+        if (!alive) return;
+        // User requested Watch -> KinoPub, not an extra button or source menu.
+        // Core rebinds hover:enter on each groupButtons (including return).
+        // Replace only activation; preserve its focus and navigation handlers.
+        watch.off('hover:enter').on('hover:enter.kpWatch', open).removeClass('hide');
+        visible.find('.button--priority.view--kinopub').remove();
+      };
+      if (start && typeof start.use === 'function' && typeof start.unuse === 'function') {
+        start._kpCardControls = {
+          onGroupButtons: bindWatch,
+          onPriorityButton: bindWatch,
+          onDestroy: function () { alive = false; watch.off('.kpWatch'); }
+        };
+        start.use(start._kpCardControls);
+      }
+      bindWatch();
     }
   }
 
@@ -4970,7 +4981,7 @@
     // settings
     addSettings();
 
-    // Source entry and direct Apple TV card entry share the same Lampa activity.
+    // Apple TV Watch opens the same KinoPub activity as the source entry.
     Lampa.Listener.follow('full', function (e) {
       if (e.type !== 'complite') return;
       // v1.0.66: pre-fetch voice-sync snapshot from VPS so Storage is
