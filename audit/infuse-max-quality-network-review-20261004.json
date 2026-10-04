@@ -1,0 +1,42 @@
+{
+  "checked_at_utc": "2026-10-04T10:41:11Z",
+  "request": "Faster Infuse startup at maximum quality; inspect latest Diagnostics project Shadowrocket profile",
+  "plugin_version": "1.0.73-mx.5",
+  "plugin_commit": "e2f110d6cece3a10eb4f125cbcf9f9af7dd453ff",
+  "plugin_sha256": "7de04c4aa0dbc369ed4eb8accbee3b5980e8e5bf0d510276829d17c5f932443e",
+  "plugin_code_changed": false,
+  "plugin_tests_passed": 50,
+  "shadowrocket_repository": "aomikh/shadowrocket-configs",
+  "shadowrocket_commit": "d3394d345549c55b661510e611771964799cf7b8",
+  "config_path": "ru_direct_runetfreedom_improved_final_autoupdate.conf",
+  "config_blob": "a2542cda1259940fd2e46460e80b6b86dc3ab6b1",
+  "config_sha256": "c7d1df4f17977406a71debbfb411d7d3fbaaa365e46fc0587ce7fbcca2d9ad45",
+  "config_bytes": 10810,
+  "update_url_status": 200,
+  "update_url_equals_main": true,
+  "config_changed": false,
+  "static_snapshot_audit": {
+    "rules": 189,
+    "traces": 79,
+    "assumed_ip_scenarios": 68,
+    "device_engine_test": false,
+    "external_lists": "Existing immutable snapshots from the Diagnostics project, not the device cache",
+    "warning": "DOMAIN-SET contains dokumentam24.ru,; native handling unknown; no established relation to Infuse"
+  },
+  "observed_host_suffix": "ams-static-15.cdntogo.net",
+  "full_hostname_checked_in_memory_only": true,
+  "domain_only_model": {
+    "RU": {"line": 290, "rule": "GEOIP,RU,DIRECT"},
+    "non_RU": {"line": 298, "rule": "FINAL,PROXY"}
+  },
+  "device_dns_and_ip_rules_evaluated": false,
+  "actual_infuse_route_verified": false,
+  "current_profile_loaded_on_apple_tv_verified": false,
+  "router_policy_verified": false,
+  "startup_speed_improved_on_device_verified": false,
+  "maximum_quality_preserved": true,
+  "next_required_evidence": [
+    "Device connection details for the actual video host during slow startup: matched rule and policy, optional timing/error/bytes",
+    "Installed Infuse version and time from opening Infuse to first frame"
+  ]
+}
