@@ -1,0 +1,31 @@
+{
+  "evidence": "User-provided Apple TV screenshot, received 2026-10-04; no signed URL available",
+  "plugin_version_visible": "1.0.73-mx.6",
+  "lampa_core_visible": 335,
+  "native_lampa_mx_version": null,
+  "infuse_version": null,
+  "tvos_version": null,
+  "duplicate_plugins_checked": false,
+  "host_suffix_only": "ams-static-15.cdntogo.net",
+  "unique_host_prefix_redacted": true,
+  "quality_visible": "1080p",
+  "link_preparation_ms": 387,
+  "ready_to_handoff_ms": 1,
+  "time_since_handoff_s": 165,
+  "time_since_handoff_is_startup_latency": false,
+  "requests": [
+    {"method": "HEAD", "status": 200},
+    {"method": "GET", "range": "bytes=0-1023", "status": 206, "header_range_match": true},
+    {"method": "GET", "range": "bytes=7310379688-7310380711", "status": null, "timeout_ms": 6000},
+    {"method": "GET", "range": "bytes=7310379688-", "status": null, "timeout_ms": 6000},
+    {"method": "GET", "range": "bytes=-1024", "status": null, "timeout_ms": 6000}
+  ],
+  "request_client": "Lampa browser environment, not Infuse",
+  "body_read_by_diagnostic_bytes": 0,
+  "whole_file_size_not_displayed_in_screenshot": true,
+  "same_resource_as_earlier_error_confirmed": false,
+  "infuse_flow_route_known": false,
+  "root_cause_confirmed": false,
+  "playback_and_seek_verified": false,
+  "conclusion": "Beginning returned matching range headers; nonzero and suffix requests did not provide headers within the Lampa diagnostic deadline. Source server, route, client, CORS and expiry are not distinguished by this screenshot."
+}

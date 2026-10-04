@@ -1,17 +1,23 @@
 {
-  "prepared_at_utc": "2026-10-04T12:14:52.358668+00:00",
-  "version": "1.0.73-mx.6",
-  "baseline_commit": "ce32c73a7f7e9d0c1808b5bbff31ff4996554812",
-  "bytes": 236294,
-  "sha256": "e9ecea099361e05b992f137944dd5bd3ffa25c42e56026156cffce825c6c6151",
-  "javascript_tests_passed": 65,
+  "prepared_at_utc": "2026-10-04T12:44:40.621633+00:00",
+  "version": "1.0.73-mx.7",
+  "baseline_commit": "4dc87c464ad7304552065bcf77ded2e474132a7b",
+  "baseline_published_sha256": "e9ecea099361e05b992f137944dd5bd3ffa25c42e56026156cffce825c6c6151",
+  "bytes": 237811,
+  "sha256": "0d91cb653bc97870be49651f4cae3bdb7aca56a3bac4af8660edadd821b27d2c",
+  "javascript_tests_passed": 74,
   "python_http_tests_passed": 15,
   "smoke_checks_passed": 20,
-  "new_regressions_failed_on_actual_mx5": 3,
+  "new_card_source_tests_passed": 9,
   "confirmed_fixes": [
-    "Infuse maximum inherited from automatic card quality label",
-    "manual diagnostic tested only beginning of resource"
+    "Explicit source container insertion even without torrent anchor",
+    "Direct Apple TV card entry into KinoPub without duplicating a native KinoPub pin",
+    "Remove release version from source markup used by Lampa for pin identity"
   ],
+  "latest_device_evidence": "audit/device-diagnostic-mx6-20261004.json",
+  "previous_mx6_loaded_on_device_confirmed": true,
+  "new_mx7_loaded_on_device_confirmed": false,
+  "card_ui_on_device_tested": false,
   "authenticated_media_tested": false,
   "range_failure_root_cause_confirmed": false,
   "speed_improvement_on_device_verified": false,
@@ -22,5 +28,6 @@
   "own_remote_branches_before": [
     "main"
   ],
-  "reference_shadowrocket_main": "8461df540797d4672739962cb246928cad2624ff"
+  "reference_shadowrocket_main": "8461df540797d4672739962cb246928cad2624ff",
+  "reference_lampa_core": "b4a13b6af7fe2f3bbbcb91f4eb434ab3378f8d5d"
 }

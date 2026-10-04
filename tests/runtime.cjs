@@ -70,12 +70,12 @@ function runtime(options = {}) {
     setTimeout: setTimer, clearTimeout: id => timers.delete(id), setInterval: setTimer, clearInterval: id => timers.delete(id),
     window: {Lampa,innerWidth:1920, fetch:options.fetch, AbortController:globalThis.AbortController,
       addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
-  function $(arg) {return jq(arg);}
+  function $(arg) {return options.jquery ? options.jquery(arg) : jq(arg);}
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
   const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
     'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic',
-    'parseProbeRange','probeRangeVerdict'];
+    'parseProbeRange','probeRangeVerdict','mountKinoPubCard','kinoPubCardButton'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
   return {api: sandbox.window.testAPI, storage, requests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
