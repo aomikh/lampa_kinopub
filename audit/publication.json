@@ -1,8 +1,8 @@
 {
-  "checked_at_utc": "2026-10-04T09:32:58.609013+00:00",
+  "checked_at_utc": "2026-10-04T10:26:14+00:00",
   "repository": "aomikh/lampa_kinopub",
-  "code_commit": "0f1317fec93ae6a2522057027ee11e55134b9ba3",
-  "version": "1.0.73-mx.4",
+  "code_commit": "e5df7619a238b3afb053e64a095c708421ea0e6d",
+  "version": "1.0.73-mx.5",
   "published": true,
   "remote_branches": [
     "main"
@@ -11,21 +11,22 @@
   "history_rewritten": false,
   "new_version_loaded_on_apple_tv": false,
   "continuous_infuse_playback_verified": false,
+  "speed_improvement_on_device_verified": false,
   "user_reported_mx3_started_then_buffered_and_failed": true,
   "buffering_root_cause_confirmed": false,
   "results": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 224473,
-      "sha256": "2cabdbf27cc1d4ea8ebf637ab5f18e236aed8a5f3d684c5e154774d5dbb5574c",
+      "bytes": 226088,
+      "sha256": "7de04c4aa0dbc369ed4eb8accbee3b5980e8e5bf0d510276829d17c5f932443e",
       "content_type": "application/javascript; charset=utf-8"
     },
     {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.4",
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.5",
       "status": 200,
-      "bytes": 224473,
-      "sha256": "2cabdbf27cc1d4ea8ebf637ab5f18e236aed8a5f3d684c5e154774d5dbb5574c",
+      "bytes": 226088,
+      "sha256": "7de04c4aa0dbc369ed4eb8accbee3b5980e8e5bf0d510276829d17c5f932443e",
       "content_type": "application/javascript; charset=utf-8"
     },
     {
@@ -33,7 +34,7 @@
       "status": 404
     }
   ],
-  "subsequent_device_evidence": {
+  "previous_version_device_evidence": {
     "reported_at": "2026-10-04T14:40:32+05:00",
     "loaded_plugin_version": "1.0.73-mx.4",
     "lampa_app_digital": 335,
