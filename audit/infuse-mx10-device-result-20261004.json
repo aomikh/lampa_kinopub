@@ -1,0 +1,36 @@
+{
+  "date_local": "2026-10-04",
+  "timezone": "Asia/Yekaterinburg",
+  "basis": "Two user-supplied screenshots, no direct device access",
+  "image_names": [
+    "IMG_60D1DCE9-DC7A-4077-9FB8-F67FDD731A20.jpeg",
+    "IMG_9D559CD2-C3E4-4F73-9292-A4CEE3C88D44.jpeg"
+  ],
+  "plugin_version_shown": "1.0.73-mx.10",
+  "lampa_core_shown": 335,
+  "infuse_version_user_report": "8.5.6 (5763)",
+  "delivery_shown": "hls2-test",
+  "quality_shown": 1080,
+  "handed_off_url_host": "api.service-kp.com",
+  "link_preparation_ms": 1269,
+  "link_ready_to_handoff_ms": 1,
+  "elapsed_since_handoff_at_report_s": 46,
+  "client_error": "Server didn't report the size of the file",
+  "new_plugin_version_loaded_on_device_confirmed": true,
+  "hls2_test_outcome": "User device attempt failed; do not recommend this mode as a fix",
+  "first_frame_time_measured": false,
+  "final_response_or_redirects_captured": false,
+  "actual_resource_type_verified": false,
+  "original_file_range_issue_root_cause_confirmed": false,
+  "public_mx10_matches_local": true,
+  "runtime_sha256": "79364f63674b3cbacfeaf353578110fe6ec9eb85dc6511d645dd13b68483a17f",
+  "code_review": [
+    "Shown host is derived from the handed-off URL, not a measured final host",
+    "Resolver response url is passed unchanged with once-only nested encoding",
+    "No authenticated media response is available to distinguish redirect, auth/error response or unsupported media"
+  ],
+  "decision": "Stop recommending repeated HLS2 attempts for this resource; keep working VLC and normal file path; no speculative runtime or network changes",
+  "runtime_changed": false,
+  "settings_changed": false,
+  "shadowrocket_changed": false
+}
