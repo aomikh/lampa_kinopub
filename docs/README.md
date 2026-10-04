@@ -47,8 +47,10 @@ https://aomikh.github.io/lampa_kinopub/kp.js
 
 MIT (плагин). Плагин не аффилирован с kinopub. Используется публичный xbmc-клиент Device Flow OAuth, известный сообществу неофициальных клиентов.
 
-## Рабочая редакция 1.0.73-mx.2
+## Рабочая редакция 1.0.73-mx.3
 
-Эта отдельная редакция добавляет прямые файловые ресурсы для Infuse 8.4.7 и новее, учитывает разовый выбор плеера и сохраняет изображения эпизодов KinoPub. Исходный проект: https://github.com/mainsync-afk/lampa_kinopub. Исправленная версия опубликована из собственного ответвления `aomikh/lampa_kinopub`; 04.10.2026 пользователь сообщил об успешной работе на Apple TV. Отдельные сценарии не перечислены; прямой проверки устройства со стороны Codex не было.
+Ответвление добавляет прямые файловые ресурсы для Infuse 8.4.7 и новее и резервные изображения эпизодов KinoPub. В mx.3 ссылка выбранного файла получается отдельным методом KinoPub перед запуском; поддерживается карточка без готовых медиассылок. Исходный проект: https://github.com/mainsync-afk/lampa_kinopub.
 
-Порядок установки и отката: [INSTALL_LAMPA_MX.md](https://github.com/aomikh/lampa_kinopub/blob/main/INSTALL_LAMPA_MX.md). Диагностика, ограничения и проверки: [HANDOFF_LAMPA_MX_KINOPUB.md](https://github.com/aomikh/lampa_kinopub/blob/main/HANDOFF_LAMPA_MX_KINOPUB.md). Данные аккаунта и конфигурация Shadowrocket не изменяются. Проверки: `node --test tests/*.test.cjs` и `node smoke-test.js` из корня рабочей копии.
+04.10.2026 пользователь после первоначального успеха сообщил об ошибке фильмов в mx.2. Точная причина на устройстве пока неизвестна. Исправления mx.3 проверены автоматическими тестами; работа этой версии на Apple TV ещё не подтверждена.
+
+Установка: `https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.3`. [Установка и откат](https://github.com/aomikh/lampa_kinopub/blob/main/INSTALL_LAMPA_MX.md). [Диагностика и ограничения](https://github.com/aomikh/lampa_kinopub/blob/main/HANDOFF_LAMPA_MX_KINOPUB.md). Авторизация и Shadowrocket не изменены. Проверки: `node --test tests/*.test.cjs` и `node smoke-test.js`.

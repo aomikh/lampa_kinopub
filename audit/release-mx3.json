@@ -1,0 +1,13 @@
+{
+  "prepared_at_utc": "2026-10-04T09:09:36.905037+00:00",
+  "version": "1.0.73-mx.3",
+  "baseline_commit": "2ee160cb2149fd39b57af3155dc530e1a2a86740",
+  "bytes": 216527,
+  "sha256": "18aef29d27c3780f9705ff5d42a8a5b6626298593ab8805c0c93ce0ee4bb7385",
+  "tests_passed": 33,
+  "smoke_checks_passed": 20,
+  "new_regressions_failed_on_mx2": 4,
+  "device_playback_tested": false,
+  "authenticated_kinopub_resource_tested": false,
+  "root_cause_of_screenshot_confirmed": false
+}

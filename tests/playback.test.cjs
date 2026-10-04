@@ -129,3 +129,93 @@ test('an oversized selected link is rejected rather than playing a later episode
   play.playlist=[play,{_kpInfuse:true,url:'https://video.example/other.mp4'}];
   assert.equal(rt.api.buildInfuseUrl(play),null);
 });
+
+function movieWithFile(rt, {noLinks = false} = {}) {
+  const fixture = source(rt);
+  fixture.item.videos[0].files = files.map((f, i) => ({
+    quality: f.quality, file: '/private-fixture/file-' + (i ? '720' : '1080') + '.mp4',
+    urls: noLinks ? {} : (f.urls || f.url)
+  }));
+  return fixture;
+}
+test('movie resolves the exact selected file with type=http before opening Infuse', () => {
+  const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item} = movieWithFile(rt);
+  view.items[0].quality = '720p';
+  view.options.onEnter(view.items[0]);
+  rt.requests.at(-1).ok({item});
+  assert.equal(rt.launches.length,0);
+  const resolve = rt.requests.at(-1), params = new URL(resolve.url).searchParams;
+  assert.equal(new URL(resolve.url).pathname,'/v1/items/media-video-link');
+  assert.equal(params.get('file'),'/private-fixture/file-720.mp4');
+  assert.equal(params.get('type'),'http');
+  resolve.ok({url:signed+'&fresh=exact'});
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&fresh=exact');
+  assert.equal(rt.requests.length,3);
+  assert.equal(rt.internal.length,0);
+  assert.equal(JSON.stringify(rt.logs).includes('/private-fixture'),false);
+});
+test('file references without item URLs resolve without constructing a media address', () => {
+  const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item} = movieWithFile(rt,{noLinks:true});
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});
+  assert.equal(rt.launches.length,0);
+  rt.requests.at(-1).ok(JSON.stringify({url:signed}));
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed);
+});
+test('resolver error never reuses the old movie URL and reports a safe stage/status', () => {
+  const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item} = movieWithFile(rt);
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});
+  const resolve=rt.requests.at(-1);
+  resolve.fail({status:403,responseText:signed});resolve.ok({url:signed});rt.tickAll();
+  assert.equal(rt.launches.length,0);
+  assert.equal(rt.requests.length,3);
+  assert.match(rt.notices.at(-1),/KP-I2 HTTP 403/);
+  assert.equal(JSON.stringify(rt.logs).includes('secret-path-token'),false);
+});
+test('resolver timeout or closing a card suppresses late results', () => {
+  for (const close of [false,true]) {
+    const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+    const {src,view,item} = movieWithFile(rt);
+    view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});
+    const resolve=rt.requests.at(-1);
+    if(close) src.destroy(); else rt.tickAll();
+    resolve.ok({url:signed});
+    assert.equal(rt.launches.length,0);assert.equal(resolve.cleared,true);
+  }
+});
+test('duplicate presses and callbacks cannot create repeated resolver requests or launches', () => {
+  const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item} = movieWithFile(rt);
+  view.options.onEnter(view.items[0]);view.options.onEnter(view.items[0]);
+  const refresh=rt.requests.at(-1);refresh.ok({item});refresh.ok({item});
+  assert.equal(rt.requests.length,3);
+  const resolve=rt.requests.at(-1);resolve.ok({url:signed});resolve.ok({url:signed});
+  assert.equal(rt.launches.length,1);
+});
+test('resolver cannot send a manifest, reducer or malformed response to Infuse', () => {
+  for (const url of [null,'https://video.example/hls4/token/file.mp4','https://video.example/master.m3u8',
+    'https://kinopub.fastcdn.pics/manifest-proxy?master=fixture']) {
+    const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+    const {view,item} = movieWithFile(rt);
+    view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});rt.requests.at(-1).ok({url});
+    assert.equal(rt.launches.length,0);assert.match(rt.notices.at(-1),/KP-I2/);
+  }
+});
+test('selected episode in the playlist uses its resolved URL; later direct URLs stay intact', () => {
+  const rt = runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item} = source(rt,true);
+  const fresh=JSON.parse(JSON.stringify(item));
+  fresh.seasons[0].episodes[0].files[0].file='/private-fixture/episode-1.mp4';
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item:fresh});
+  rt.requests.at(-1).ok({url:signed+'&selected=fresh'});
+  const links=new URL(rt.launches[0]).searchParams.getAll('url');
+  assert.deepEqual(links,[signed+'&selected=fresh',signed]);
+});
+test('invalid selected resource cannot skip ahead to another episode', () => {
+  const rt=runtime();
+  const play={_kpInfuse:true,url:'https://video.example/hls/token/file.mp4'};
+  play.playlist=[play,{_kpInfuse:true,url:signed}];
+  assert.equal(rt.api.buildInfuseUrl(play),null);
+});

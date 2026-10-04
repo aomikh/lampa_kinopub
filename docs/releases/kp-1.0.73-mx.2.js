@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.3';
+  var PLUGIN_VERSION  = '1.0.73-mx.2';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -144,15 +144,6 @@
     return typeof value === 'string' && /^https?:\/\/[^\s]+$/i.test(value) ? value : null;
   }
 
-  function infuseFileUrl(value) {
-    if (!mediaUrl(value)) return null;
-    // A file field is not proof of the response's type. Reject recognisable
-    // manifest/reducer URLs; leave opaque signed file URLs byte-for-byte intact.
-    var path = value.split('?')[0].split('#')[0];
-    if (/\.(m3u8|mpd)$/i.test(path) || /\/(hls(?:2|4)?|manifest-proxy)(?:\/|$)/i.test(path)) return null;
-    return value;
-  }
-
   function numberValue(value) {
     if (typeof value !== 'number' && typeof value !== 'string') return null;
     var text = String(value).trim();
@@ -259,7 +250,7 @@
     var full = false;
     list.slice(0, 40).forEach(function (p, index) {
       if (full) return;
-      if (!p || !infuseFileUrl(p.url) || !p._kpInfuse) { full = true; return; }
+      if (!p || !mediaUrl(p.url) || !p._kpInfuse) return;
       var position = p.timeline && Number(p.timeline.time);
       var part = 'url=' + encodeURIComponent(p.url) +
         '&position=' + (isFinite(position) && position > 0 ? Math.floor(position) : 0);
@@ -734,11 +725,6 @@
       },
       item: function (network, id, ok, err) {
         api(network, '/items/' + id, null, ok, err);
-      },
-      mediaVideoLink: function (network, file, ok, err) {
-        // Official exact-file resolver. Do not derive a URL from a HLS path
-        // or reuse a cached item link when this request fails.
-        api(network, '/items/media-video-link', { file: file, type: 'http' }, ok, err);
       },
       profile: function (network, ok, err) {
         api(network, '/user', null, ok, err);
@@ -2143,7 +2129,7 @@
    * usable by Lampa.Player.play({quality: ...})
    * Plus return the URL for the requested target quality (or the largest available <= maxQuality).
    */
-  function pickStream(files, format, target, allowFileReference) {
+  function pickStream(files, format, target) {
     if (!files || !files.length) return null;
     // 'http' (progressive MP4) is intentionally NOT in any fallback list —
     // it freezes on Tizen players. Real auto resolution happens in
@@ -2155,16 +2141,13 @@
     function pickUrl(u) {
       for (var i = 0; i < fmtList.length; i++) {
         var k = fmtList[i];
-        if (u && (format === 'http' && allowFileReference ? infuseFileUrl(u[k]) : mediaUrl(u[k]))) return u[k];
+        if (u && mediaUrl(u[k])) return u[k];
       }
       return null;
     }
 
     var maxQ  = maxQuality();
-    var avail = files.filter(function (f) {
-      return f.quality <= maxQ && (pickUrl(f.urls) ||
-        (format === 'http' && allowFileReference && f.file));
-    });
+    var avail = files.filter(function (f) { return f.quality <= maxQ && pickUrl(f.urls); });
     if (!avail.length && format !== 'http') avail = files.filter(function (f) { return pickUrl(f.urls); });
     if (!avail.length) return null;
 
@@ -2641,31 +2624,23 @@
       infuseLaunching = true;
       var generation = ++infuseGeneration;
       var kpId = raw.id;
-      var stage = 'item';
       Logger.info('infuse', 'refreshing KinoPub links', { season: item.season, episode: item.episode });
-      function fail(reason, status) {
+      function fail(stage, status) {
         if (generation !== infuseGeneration || !infuseLaunching) return;
         infuseLaunching = false;
         clearTimeout(infuseTimer);
-        Logger.warn('infuse', reason, { stage: stage, status: status });
-        var code = stage === 'file' ? 'KP-I2' : 'KP-I1';
-        Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file') + ' [' + code +
-          (numberValue(status) !== null ? ' HTTP ' + numberValue(status) : '') + ']');
+        Logger.warn('infuse', stage, { status: status });
+        Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file'));
       }
-      // Bound each of the two API stages independently.
-      function armTimeout() {
-        clearTimeout(infuseTimer);
-        infuseTimer = setTimeout(function () {
-          fail('link refresh timed out');
-          infuseNetwork.clear();
-        }, 18000);
-      }
-      armTimeout();
+      // A hung API callback cannot keep the card locked forever.
+      infuseTimer = setTimeout(function () {
+        fail('link refresh timed out');
+        infuseNetwork.clear();
+      }, 18000);
       KP.item(infuseNetwork, kpId, function (json) {
-        if (generation !== infuseGeneration || !infuseLaunching || stage !== 'item') return;
+        if (generation !== infuseGeneration || !infuseLaunching) return;
         var fresh = json && json.item;
         if (!fresh || String(fresh.id) !== String(kpId)) { fail('item identity mismatch'); return; }
-        stage = 'file';
         function refreshed(element) {
           var video;
           if (element.kp.kind === 'episode') {
@@ -2688,36 +2663,15 @@
         if (!play) { fail('no direct file at selected quality'); return; }
         var playlist = [];
         var selected = items.indexOf(item);
-        var incomplete = false;
         (item.kp.kind === 'episode' ? items.slice(Math.max(0, selected), Math.max(0, selected) + 40) : [item])
           .forEach(function (entry) {
-            if (incomplete) return;
             var p = entry === item ? play : refreshed(entry);
-            // Never jump across an episode with an unavailable link.
-            if (p && (entry === item || infuseFileUrl(p.url))) playlist.push(p);
-            else incomplete = true;
+            if (p) playlist.push(p);
           });
         play.playlist = playlist;
-        function handoff(url) {
-          if (generation !== infuseGeneration || !infuseLaunching) return;
-          if (!infuseFileUrl(url)) { fail('file resolver returned no direct resource'); return; }
-          play.url = url;
-          infuseLaunching = false;
-          clearTimeout(infuseTimer);
-          dispatchInfuse(play);
-        }
-        if (play._kpFile) {
-          Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
-          armTimeout();
-          KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
-            if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
-            handoff(result && result.url);
-          }, function (xhr) { fail('direct file resolution failed', xhr && xhr.status); });
-        } else {
-          // Older responses may contain only URLs. Their fresh http field is
-          // the sole supported fallback; no invented file identifier.
-          handoff(play.url);
-        }
+        infuseLaunching = false;
+        clearTimeout(infuseTimer);
+        dispatchInfuse(play);
         // Handoff is not a viewing event. No mark(), watched(), timeline
         // update or internal Lampa player hooks are run for Infuse.
       }, function (xhr) { fail('link refresh failed', xhr && xhr.status); });
@@ -2964,7 +2918,7 @@
 
     function streamForElement(element, target, player) {
       var fmt = preferredFormat(player);
-      var stream = pickStream(element.kp.files, fmt, target, player === 'infuse');
+      var stream = pickStream(element.kp.files, fmt, target);
       if (!stream) {
         Logger.warn('source', 'no stream picked', { kind: element.kp.kind, fmt: fmt });
         return null;
@@ -3029,11 +2983,10 @@
         delete play.callback;
         play._kpInfuse = true;
         play._kpQuality = stream.currentQuality;
-        play._kpFile = stream.file;
         play.season = element.season;
         play.episode = element.episode;
         var seriesName = object.movie && (object.movie.name || object.movie.title) || '';
-        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || (stream.url || '').split('?')[0]).split('#')[0]);
+        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || stream.url.split('?')[0]).split('#')[0]);
         play.filename = (element.kp.kind === 'episode' ? seriesName + ' ' + displayTitle : displayTitle) +
           (extension ? '.' + extension[1] : '');
         if (Lampa.Storage.get(KEY_SUBS, false)) {
