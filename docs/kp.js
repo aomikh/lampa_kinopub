@@ -23,7 +23,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73';
+  var PLUGIN_VERSION  = '1.0.73-mx.1';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -94,6 +94,109 @@
   var KEY_PROXY       = 'kp_proxy';
   var KEY_SUBS        = 'kp_subtitles_enabled';
 
+  // Never log URL paths: KinoPub can carry the credential in the path as
+  // well as the query. This affects diagnostics only, never the media URL.
+  function redactDiagnostic(value, key) {
+    if (/token|secret|authorization|cookie|device_code|refresh|^code$/i.test(key || '')) return '[redacted]';
+    if (/^(body|responseText|keep|master|path|stack)$/i.test(key || '')) return '[redacted]';
+    if (typeof value === 'string') {
+      if (/^(url|src|file|failedUrl)$/i.test(key || '')) return resourceInfo(value);
+      return value.replace(/(?:https?|infuse|blob|data):[^\s"'<>]+/gi, function (url) {
+        var info = resourceInfo(url);
+        return info.host ? info.scheme + '://' + info.host + '/[redacted]' : '[redacted-url]';
+      }).replace(/(Bearer\s+)[^\s]+/gi, '$1[redacted]')
+        .replace(/((?:access_token|refresh_token|token|signature|sig|secret|cookie)\s*[=:]\s*)[^\s,;]+/gi, '$1[redacted]');
+    }
+    if (Array.isArray(value)) return value.map(function (v) { return redactDiagnostic(v); });
+    if (value && typeof value === 'object') {
+      var out = {};
+      Object.keys(value).forEach(function (k) { out[k] = redactDiagnostic(value[k], k); });
+      return out;
+    }
+    return value;
+  }
+
+  function redactConsole(value) {
+    try { return redactDiagnostic(JSON.parse(JSON.stringify(value))); }
+    catch (e) { return '[unserializable]'; }
+  }
+
+  function resourceInfo(url) {
+    var info = { scheme: '', host: '', kind: 'unknown' };
+    if (typeof url !== 'string') return info;
+    try {
+      var parsed = new URL(url);
+      info.scheme = parsed.protocol.replace(':', '');
+      info.host = parsed.hostname;
+      info.kind = /\.m3u8(?:$|\/)/i.test(parsed.pathname) ? 'manifest' :
+        /\.(mp4|mkv|mov|m4v|ts)$/i.test(parsed.pathname) ? 'file' : 'unknown';
+      if (url.indexOf(KP_PROXY_URL + '/manifest-proxy?') === 0) info.kind = 'manifest-proxy';
+    } catch (e) {}
+    return info;
+  }
+
+  function mediaUrl(value) {
+    // Do not reserialize, decode, upgrade http, or rewrite a signed URL.
+    return typeof value === 'string' && /^https?:\/\/[^\s]+$/i.test(value) ? value : null;
+  }
+
+  function numberValue(value) {
+    if (typeof value !== 'number' && typeof value !== 'string') return null;
+    var text = String(value).trim();
+    if (!/^\d+$/.test(text)) return null;
+    var n = Number(text);
+    return isFinite(n) && n >= 0 && n <= 2147483647 ? n : null;
+  }
+
+  // Infuse 8.4.7+: repeated url/position/filename/sub groups, once-encoded.
+  // No guessed Lampa MX callback scheme and no undocumented playlist=.
+  function buildInfuseUrl(play) {
+    var list = Array.isArray(play.playlist) && play.playlist.length ? play.playlist : [play];
+    var start = list.indexOf(play);
+    if (start < 0) start = list.findIndex(function (p) { return p && p.url === play.url; });
+    if (start < 0) list = [play];
+    if (start > 0) list = list.slice(start);
+    var query = [];
+    var full = false;
+    list.slice(0, 40).forEach(function (p, index) {
+      if (full) return;
+      if (!p || !mediaUrl(p.url) || !p._kpInfuse) return;
+      var position = p.timeline && Number(p.timeline.time);
+      var part = 'url=' + encodeURIComponent(p.url) +
+        '&position=' + (isFinite(position) && position > 0 ? Math.floor(position) : 0);
+      if (p.filename || p.title) part += '&filename=' + encodeURIComponent(p.filename || p.title);
+      var subs = p.subtitles || [];
+      for (var i = 0; i < subs.length; i++) {
+        if (mediaUrl(subs[i].url)) { part += '&sub=' + encodeURIComponent(subs[i].url); break; }
+      }
+      // Keep the selected item even if later episodes exceed the limit.
+      if (query.join('&').length + part.length + 32 <= 65536) query.push(part);
+      else full = true;
+    });
+    return query.length ? 'infuse://x-callback-url/play?' + query.join('&') : null;
+  }
+
+  function dispatchInfuse(play) {
+    var url = buildInfuseUrl(play);
+    if (!url) { Logger.warn('infuse', 'handoff rejected'); return false; }
+    pendingVoice = null;
+    currentVoiceLabel = '';
+    // Same scheme dispatch used by Lampa's external adapter. Its current
+    // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
+    try {
+      window.location.assign(url);
+      Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
+        resource: resourceInfo(play.url), quality: play._kpQuality,
+        entries: (play.playlist || [play]).length, callbacks: false
+      });
+      return true;
+    } catch (e) {
+      Logger.error('infuse', 'handoff failed', { error: String(e) });
+      Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_handoff_error'));
+      return false;
+    }
+  }
+
   /* ============================================================ *
    *  LOGGER                                                      *
    *  - prints to console with [KP:tag] prefix                    *
@@ -128,8 +231,8 @@
 
     function safeData(v) {
       if (v === undefined) return undefined;
-      try { return JSON.parse(JSON.stringify(v)); }
-      catch (e) { try { return String(v); } catch (e2) { return null; } }
+      try { return redactDiagnostic(JSON.parse(JSON.stringify(v))); }
+      catch (e) { return '[unserializable]'; }
     }
 
     function consolePrint(level, tag, message, data) {
@@ -154,7 +257,8 @@
       var safe = safeData(data);
       if (safe !== undefined) rec.data = safe;
 
-      consolePrint(level, tag, message, data);
+      rec.message = redactDiagnostic(message);
+      consolePrint(level, tag, rec.message, safe);
 
       if (!endpoint) return;
       queue.push(rec);
@@ -241,7 +345,7 @@
         // skip our own [KP:...] log echoes to avoid feedback
         if (m.indexOf('[KP:') !== 0) Logger.error('console', m.slice(0, 1000));
       } catch (e) {}
-      return origError.apply(console, arguments);
+      return origError.apply(console, Array.prototype.map.call(arguments, redactConsole));
     };
     console.warn = function () {
       try {
@@ -250,7 +354,7 @@
           Logger.warn('console', m.slice(0, 1000));
         }
       } catch (e) {}
-      return origWarn.apply(console, arguments);
+      return origWarn.apply(console, Array.prototype.map.call(arguments, redactConsole));
     };
     // log filter is strict — too noisy otherwise
     console.log = function () {
@@ -260,7 +364,7 @@
           Logger.debug('console', m.slice(0, 1000));
         }
       } catch (e) {}
-      return origLog.apply(console, arguments);
+      return origLog.apply(console, Array.prototype.map.call(arguments, redactConsole));
     };
   })();
 
@@ -771,7 +875,7 @@
 
     var origUrl = Lampa.PlayerVideo.url;
     Lampa.PlayerVideo.url = function (src, change_quality) {
-      if (!change_quality && typeof src === 'string' &&
+      if (Lampa.Platform.is('tizen') && !change_quality && typeof src === 'string' &&
           KP_PROXY_URL && src.indexOf(KP_PROXY_URL) === 0) {
         Logger.info('player', 'forcing change_quality=true for proxy URL (skip hls.js parse)');
         return origUrl.call(this, src, true);
@@ -975,8 +1079,8 @@
   // back to (master, voice) — no &quality= param sent. Plugin doesn't set
   // play.quality, so Lampa's native picker stays empty / disabled. To
   // bring it back, see [[project-kp-quality-picker]] memory note.
-  function proxyUrlFor(masterUrl, voiceIndex) {
-    if (!kpProxyAvailable || !masterUrl) return null;
+  function proxyUrlFor(masterUrl, voiceIndex, player) {
+    if (!useManifestProxy(player) || !masterUrl) return null;
     var base = KP_PROXY_URL.replace(/\/+$/, '');
     return base + '/manifest-proxy?master=' +
            encodeURIComponent(masterUrl) +
@@ -1482,7 +1586,8 @@
    * Returns the active Lampa player choice: 'tizen', 'lampa', 'inner', 'webos',
    * 'android', or '' if not set. Used by `auto` format resolution.
    */
-  function detectActualPlayer() {
+  function detectActualPlayer(override) {
+    if (override) return String(override).toLowerCase();
     try {
       var v = '';
       if (typeof Lampa.Storage.field === 'function') v = Lampa.Storage.field('player');
@@ -1506,12 +1611,22 @@
    *
    * Both player paths therefore land on HLS2.
    */
-  function preferredFormat() {
+  function useManifestProxy(player) {
+    player = detectActualPlayer(player);
+    var setting = formatOverride || Lampa.Storage.get(KEY_FORMAT, 'auto');
+    return kpProxyAvailable === true && Lampa.Platform.is('tizen') &&
+      ['tizen', 'lampa', 'inner', ''].indexOf(player) !== -1 &&
+      (setting === 'auto' || setting === 'hls4');
+  }
+
+  function preferredFormat(player) {
+    player = detectActualPlayer(player);
+    if (player === 'infuse') return 'http';
     if (KP_BLOB_TEST) {
       // Legacy diagnostic — see KP_BLOB_TEST flag.
       return 'hls4';
     }
-    if (kpProxyAvailable === true) {
+    if (useManifestProxy(player)) {
       // Proxy is up — request HLS4 from kinopub. Proxy will reduce it
       // to a single-audio master before player sees it.
       return 'hls4';
@@ -1521,7 +1636,6 @@
     if (setting && setting !== 'auto') return setting;
 
     // Auto: HLS2 for both Tizen native and Lampa-built-in.
-    var player = detectActualPlayer();
     var resolved = 'hls2';
     var key = player + '|' + resolved;
     if (lastAutoFormatLogKey !== key) {
@@ -1912,7 +2026,8 @@
       arr.push({
         quality: qn,
         label:   qs,
-        urls:    f.url || {}
+        urls:    f.urls || f.url || {},
+        file:    typeof f.file === 'string' ? f.file : ''
       });
     }
     arr.sort(function (a, b) { return b.quality - a.quality; });
@@ -1929,21 +2044,21 @@
     // 'http' (progressive MP4) is intentionally NOT in any fallback list —
     // it freezes on Tizen players. Real auto resolution happens in
     // preferredFormat() before we get here, so 'auto' is just a defensive default.
-    var fmtList = format === 'auto'
+    var fmtList = format === 'http' ? ['http'] : format === 'auto'
       ? ['hls4', 'hls2', 'hls']
       : [format, 'hls4', 'hls2', 'hls'];
 
     function pickUrl(u) {
       for (var i = 0; i < fmtList.length; i++) {
         var k = fmtList[i];
-        if (u && u[k]) return u[k];
+        if (u && mediaUrl(u[k])) return u[k];
       }
       return null;
     }
 
     var maxQ  = maxQuality();
     var avail = files.filter(function (f) { return f.quality <= maxQ && pickUrl(f.urls); });
-    if (!avail.length) avail = files.filter(function (f) { return pickUrl(f.urls); });
+    if (!avail.length && format !== 'http') avail = files.filter(function (f) { return pickUrl(f.urls); });
     if (!avail.length) return null;
 
     // sorted desc, so first is largest available
@@ -1953,6 +2068,7 @@
       var pick = avail.find ? avail.find(function (f) { return f.quality === tn; })
                             : null;
       if (pick) best = pick;
+      else if (format === 'http') return null;
     }
 
     var quality = {};
@@ -1967,7 +2083,8 @@
       url: url,
       quality: quality,
       currentQuality: best.quality,
-      label: best.label
+      label: best.label,
+      file: best.file
     };
   }
 
@@ -2202,6 +2319,10 @@
 
   function kpapi(component, _object) {
     var network = new Lampa.Reguest();
+    var infuseNetwork = new Lampa.Reguest();
+    var infuseGeneration = 0;
+    var infuseLaunching = false;
+    var infuseTimer = null;
     var object  = _object;
 
     var raw      = null;          // /v1/items/{id} response
@@ -2352,6 +2473,7 @@
     this.extendChoice = function (saved) { Lampa.Arrays.extend(choice, saved, true); };
 
     this.reset = function () {
+      cancelInfuseLaunch();
       Logger.debug('source', 'reset');
       component.reset();
       choice = { season: 0, voice: 0, voice_name: '' };
@@ -2363,6 +2485,7 @@
     };
 
     this.filter = function (type, a, b) {
+      cancelInfuseLaunch();
       Logger.debug('source', 'filter change', { type: a.stype, index: b.index });
       choice[a.stype] = b.index;
       if (a.stype === 'voice') {
@@ -2387,6 +2510,7 @@
     };
 
     this.destroy = function () {
+      cancelInfuseLaunch();
       Logger.debug('source', 'destroy');
       network.clear();
       raw = null;
@@ -2394,6 +2518,71 @@
     };
 
     /* ---------- internal helpers ---------- */
+
+    function cancelInfuseLaunch() {
+      infuseGeneration++;
+      infuseLaunching = false;
+      clearTimeout(infuseTimer);
+      infuseNetwork.clear();
+    }
+
+    function launchInfuse(item, items) {
+      if (infuseLaunching || !raw || !raw.id) return;
+      infuseLaunching = true;
+      var generation = ++infuseGeneration;
+      var kpId = raw.id;
+      Logger.info('infuse', 'refreshing KinoPub links', { season: item.season, episode: item.episode });
+      function fail(stage, status) {
+        if (generation !== infuseGeneration || !infuseLaunching) return;
+        infuseLaunching = false;
+        clearTimeout(infuseTimer);
+        Logger.warn('infuse', stage, { status: status });
+        Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file'));
+      }
+      // A hung API callback cannot keep the card locked forever.
+      infuseTimer = setTimeout(function () {
+        fail('link refresh timed out');
+        infuseNetwork.clear();
+      }, 18000);
+      KP.item(infuseNetwork, kpId, function (json) {
+        if (generation !== infuseGeneration || !infuseLaunching) return;
+        var fresh = json && json.item;
+        if (!fresh || String(fresh.id) !== String(kpId)) { fail('item identity mismatch'); return; }
+        function refreshed(element) {
+          var video;
+          if (element.kp.kind === 'episode') {
+            var season = (fresh.seasons || []).find(function (s) {
+              return numberValue(s.number) === numberValue(element.season);
+            });
+            video = season && (season.episodes || []).find(function (e, i) {
+              var n = numberValue(e.number);
+              return (n === null ? i + 1 : n) === numberValue(element.episode);
+            });
+          } else video = (fresh.videos || [])[0];
+          if (!video) return null;
+          var copy = {};
+          Object.keys(element).forEach(function (key) { copy[key] = element[key]; });
+          copy.kp = { kind: element.kp.kind, files: parseFiles(video.files),
+            audios: video.audios || [], subtitles: video.subtitles || [] };
+          return toPlayElement(copy, 'infuse');
+        }
+        var play = refreshed(item);
+        if (!play) { fail('no direct file at selected quality'); return; }
+        var playlist = [];
+        var selected = items.indexOf(item);
+        (item.kp.kind === 'episode' ? items.slice(Math.max(0, selected), Math.max(0, selected) + 40) : [item])
+          .forEach(function (entry) {
+            var p = entry === item ? play : refreshed(entry);
+            if (p) playlist.push(p);
+          });
+        play.playlist = playlist;
+        infuseLaunching = false;
+        clearTimeout(infuseTimer);
+        dispatchInfuse(play);
+        // Handoff is not a viewing event. No mark(), watched(), timeline
+        // update or internal Lampa player hooks are run for Infuse.
+      }, function (xhr) { fail('link refresh failed', xhr && xhr.status); });
+    }
 
     function adaptSimilar(c) {
       // kinopub gives us `title` as "Русское / Original"; split for prettier display
@@ -2628,8 +2817,8 @@
       return [];
     }
 
-    function streamForElement(element, target) {
-      var fmt = preferredFormat();
+    function streamForElement(element, target, player) {
+      var fmt = preferredFormat(player);
       var stream = pickStream(element.kp.files, fmt, target);
       if (!stream) {
         Logger.warn('source', 'no stream picked', { kind: element.kp.kind, fmt: fmt });
@@ -2661,8 +2850,9 @@
       return null;
     }
 
-    function toPlayElement(element) {
-      var stream = streamForElement(element, element.quality);
+    function toPlayElement(element, actualPlayer) {
+      actualPlayer = detectActualPlayer(actualPlayer);
+      var stream = streamForElement(element, element.quality, actualPlayer);
       if (!stream) return null;
 
       // Title formatting:
@@ -2689,6 +2879,27 @@
         callback: element.mark
       };
 
+      if (actualPlayer === 'infuse') {
+        delete play.quality;
+        delete play.callback;
+        play._kpInfuse = true;
+        play._kpQuality = stream.currentQuality;
+        play.season = element.season;
+        play.episode = element.episode;
+        var seriesName = object.movie && (object.movie.name || object.movie.title) || '';
+        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || stream.url.split('?')[0]).split('#')[0]);
+        play.filename = (element.kp.kind === 'episode' ? seriesName + ' ' + displayTitle : displayTitle) +
+          (extension ? '.' + extension[1] : '');
+        if (Lampa.Storage.get(KEY_SUBS, false)) {
+          // The documented interface accepts one subtitle URL per video,
+          // but does not expose a timing-shift or audio-selection parameter.
+          play.subtitles = buildSubtitles((element.kp.subtitles || []).filter(function (s) {
+            return !s.shift && mediaUrl(s.url);
+          }));
+        }
+        return play;
+      }
+
       // ── Voice selection ────────────────────────────────────────────────
       // Filter is the canonical UI for picking voice (choice.voice_key).
       // For each episode we resolve which audio-track index in this episode's
@@ -2700,7 +2911,7 @@
       // Two reasons to keep at least one entry:
       //   1. Empty voiceovers on Tizen broke the player lifecycle in v1.0.12.
       //   2. Single entry keeps player UI showing the active voice as label.
-      var player   = detectActualPlayer();
+      var player   = actualPlayer;
       var audios   = element.kp.audios || [];
       var voiceIdx = -1;
       var pickedLabel = '';
@@ -2738,7 +2949,7 @@
         if (pickedLabel) currentVoiceLabel = pickedLabel;
 
         if (voiceIdx >= 0) {
-          if (kpProxyAvailable === true && audios.length > 0) {
+          if (useManifestProxy(player) && audios.length > 0) {
             // v1.0.31: Multi-entry voiceovers with onSelect callback.
             // Each voice is a different proxy URL (same kinopub master,
             // different voice query param). On click, Lampa runs onSelect
@@ -2759,7 +2970,7 @@
             var vovers = audios.map(function (audio, idx) {
               var label    = voiceLabel(audio) || ('Track ' + (idx + 1));
               var kpIndex  = (typeof audio.index === 'number' && audio.index > 0) ? audio.index : (idx + 1);
-              var proxyUrl = proxyUrlFor(stream.url, kpIndex);
+              var proxyUrl = proxyUrlFor(stream.url, kpIndex, player);
               var akey     = voiceKey(audio);
               return {
                 name:      label,
@@ -2843,8 +3054,10 @@
       component.reset();
       component.draw(items, {
         similars: waitSimilars,
-        onEnter: function (item) {
-          var play = toPlayElement(item);
+        onEnter: function (item, html, options) {
+          var actualPlayer = detectActualPlayer(options && options.player);
+          if (actualPlayer === 'infuse') { launchInfuse(item, items); return; }
+          var play = toPlayElement(item, actualPlayer);
           if (!play) {
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
             return;
@@ -2853,7 +3066,7 @@
           var playlistSrc = []; // parallel array: source item per playlist entry
           if (item.season) {
             items.forEach(function (e) {
-              var p = toPlayElement(e);
+              var p = toPlayElement(e, actualPlayer);
               if (p) { playlist.push(p); playlistSrc.push(e); }
             });
           } else {
@@ -2895,7 +3108,7 @@
           // setSelectTrack/hls.audioTrack (Phase B on HLS2) without restart.
           dumpStreamManifest(play.url);
 
-          if (kpProxyAvailable === true) {
+          if (useManifestProxy(actualPlayer)) {
             // Proxy is reachable — route the kinopub HLS4 master through it.
             // Proxy returns a reduced master (1 audio + best video stream-inf)
             // that Tizen AVPlayer demuxes in 2 tracks, no multi-audio crash.
@@ -2918,7 +3131,7 @@
             // shows no picker (kinopub serves the same master for all
             // qualities anyway). To bring back picker, see memory
             // note [[project-kp-quality-picker]].
-            var proxyUrl = proxyUrlFor(originalUrl, voiceOneBased);
+            var proxyUrl = proxyUrlFor(originalUrl, voiceOneBased, actualPlayer);
             delete play.quality;
             play.url = proxyUrl;
             Logger.info('proxy', 'launching via manifest-proxy', {
@@ -2963,7 +3176,7 @@
                   }
                 }
                 // v1.0.73 rollback: drop quality picker for playlist items too.
-                var pleProxyUrl = proxyUrlFor(ple.url, pleVoiceOneBased);
+                var pleProxyUrl = proxyUrlFor(ple.url, pleVoiceOneBased, actualPlayer);
                 if (pleProxyUrl) {
                   delete ple.quality;
                   ple.url = pleProxyUrl;
@@ -3530,6 +3743,9 @@
           self.contextMenu({
             html: html,
             element: element,
+            onPlay: function (player) {
+              if (params.onEnter) params.onEnter(element, html, { player: player });
+            },
             onFile: function (call) {
               if (params.onContextMenu) params.onContextMenu(element, html, {}, call);
             },
@@ -3580,6 +3796,9 @@
           var menu = [];
           if (Lampa.Platform.is('webos'))   menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Webos',   player: 'webos' });
           if (Lampa.Platform.is('android')) menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Android', player: 'android' });
+          if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
+            menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Infuse', player: 'infuse' });
+          }
           menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Lampa', player: 'lampa' });
           menu.push({ title: Lampa.Lang.translate('online_video'), separator: true });
           menu.push({ title: Lampa.Lang.translate('kp_try_format'), kpformat: true });
@@ -3601,7 +3820,11 @@
               if (a.clearallmark) params.onClearAllMark();
               if (a.timeclearall) params.onClearAllTime();
               Lampa.Controller.toggle(enabled);
-              if (a.player) { Lampa.Player.runas(a.player); params.html.trigger('hover:enter'); }
+              if (a.player) {
+                if (a.player !== 'infuse') Lampa.Player.runas(a.player);
+                if (params.onPlay) params.onPlay(a.player);
+                else params.html.trigger('hover:enter');
+              }
               if (a.kpformat) {
                 var formats = [
                   { title: 'HLS v4 (fMP4)', fmt: 'hls4' },
@@ -3899,11 +4122,11 @@
     //   v4: → 'auto'  (smart pick by player type: tizen → hls4, else → hls2)
     //   v5: → 'auto'  (auto now resolves to hls2 universally — see v1.0.28
     //         diagnosis. HLS4 multi-track demux overloads Tizen AVPlayer at 4K.)
-    if (Lampa.Storage.get('kp_format_migrated_v4', '') !== '1') {
-      Lampa.Storage.set(KEY_FORMAT, 'auto');
+    if (Lampa.Platform.is('tizen') && Lampa.Storage.get('kp_format_migrated_v4', '') !== '1') {
+      if (!Lampa.Storage.get(KEY_FORMAT, '')) Lampa.Storage.set(KEY_FORMAT, 'auto');
       Lampa.Storage.set('kp_format_migrated_v4', '1');
     }
-    if (Lampa.Storage.get('kp_format_migrated_v5', '') !== '1') {
+    if (Lampa.Platform.is('tizen') && Lampa.Storage.get('kp_format_migrated_v5', '') !== '1') {
       // Force-reset anyone explicitly on 'hls4' (or stuck on 'auto' which
       // previously meant hls4 on Tizen) back to 'auto'. The previous explicit
       // hls4 choice was based on plugin guidance that turned out to be wrong.
@@ -3915,7 +4138,7 @@
     if (Lampa.Storage.get(KEY_FORMAT, '') === '') Lampa.Storage.set(KEY_FORMAT, 'auto');
     // 'http' option was removed in v1.0.11 — progressive MP4 freezes on Tizen.
     // Reset anyone explicitly stuck on it.
-    if (Lampa.Storage.get(KEY_FORMAT, '') === 'http') Lampa.Storage.set(KEY_FORMAT, 'auto');
+    if (Lampa.Platform.is('tizen') && Lampa.Storage.get(KEY_FORMAT, '') === 'http') Lampa.Storage.set(KEY_FORMAT, 'auto');
 
     if (!Lampa.SettingsApi) {
       Logger.warn('settings', 'Lampa.SettingsApi unavailable on this build, skipping settings');
@@ -4050,6 +4273,16 @@
         ru: 'Смотреть на kinopub',
         en: 'Watch on kinopub',
         ua: 'Дивитися на kinopub'
+      },
+      kp_infuse_no_file: {
+        ru: 'Не удалось получить прямой файл KinoPub в выбранном качестве. Повторите запуск или выберите доступное качество.',
+        en: 'No fresh direct KinoPub file at the selected quality. Retry or choose an available quality.',
+        ua: 'Не вдалося отримати прямий файл KinoPub у вибраній якості.'
+      },
+      kp_infuse_handoff_error: {
+        ru: 'Не удалось передать видео в Infuse. Проверьте установку приложения.',
+        en: 'Could not hand off to Infuse. Check that the app is installed.',
+        ua: 'Не вдалося передати відео в Infuse.'
       },
       kp_auth_title: {
         ru: 'Авторизация kinopub',

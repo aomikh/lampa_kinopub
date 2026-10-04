@@ -1,0 +1,35 @@
+{
+  "checked_at_utc": "2026-10-04T06:58:19.809377+00:00",
+  "upstream_commit": "09f5090ed3f860b7054eb1336b5f26c4e67e0eb9",
+  "published_url": "https://mainsync-afk.github.io/lampa_kinopub/kp.js",
+  "published_version": "1.0.73",
+  "published_sha256": "4558a0f276b7e1aa35d5b1a23f8ffb1fd5787990eede29c5d773931e78fd9fbb",
+  "published_equals_docs_kp_js": true,
+  "lampa_reference_commit": "b4a13b6af7fe2f3bbbcb91f4eb434ab3378f8d5d",
+  "proxy_health": {
+    "ok": true,
+    "service": "lampa-kinopub-proxy",
+    "version": "1.1.6",
+    "uptimeSec": 7474185,
+    "cache": {
+      "size": 500,
+      "ttlMs": 60000,
+      "hits": 963,
+      "misses": 2021
+    },
+    "hostPolicy": "public-only (SSRF-safe)",
+    "voiceSync": {
+      "dir": "/var/data/voice-sync",
+      "shows": 53
+    }
+  },
+  "device_access": false,
+  "user_confirmed_infuse": "8.4.7 or newer",
+  "device_versions": {
+    "lampa_mx": null,
+    "lampa_core": null,
+    "tvos": null,
+    "infuse_exact": null
+  },
+  "installed_duplicates": "not observable without device"
+}

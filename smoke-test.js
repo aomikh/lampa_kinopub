@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const code = fs.readFileSync(path.join(__dirname, 'github', 'kp.js'), 'utf8');
+const code = fs.readFileSync(path.join(__dirname, 'docs', 'kp.js'), 'utf8');
 
 // jQuery-ish sham — the plugin only uses $('<...>'), .on, .find, .append, .text,
 // and as a function that returns a thenable-free wrapper.
@@ -80,7 +80,7 @@ const Lampa = {
     add: (obj) => { langKeys = langKeys.concat(Object.keys(obj)); },
     translate: (k) => k
   },
-  Listener: { follow: (name, cb) => { listenerFollow = { name, cb }; } },
+  Listener: { follow: (name, cb) => { if (name === 'full') listenerFollow = { name, cb }; } },
   Manifest_set: null,
   Component: {
     add: (name, cls) => { if (name === 'online_kp') kpComponentRegistered = cls; },
@@ -162,7 +162,7 @@ const checks = [
   ['settings has format', settingsAdded.some((s) => s.kind === 'param' && s.name === 'kp_format')],
   ['settings has login', settingsAdded.some((s) => s.kind === 'param' && s.name === 'kp_action_login')],
   ['default max_quality stored', storage['kp_max_quality'] === '1080'],
-  ['default format stored', storage['kp_format'] === 'http']
+  ['default format stored', storage['kp_format'] === 'auto']
 ];
 
 let pass = 0, fail = 0;
