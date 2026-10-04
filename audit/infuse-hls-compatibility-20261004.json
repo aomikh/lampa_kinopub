@@ -22,5 +22,22 @@
   "runtime_changed": false,
   "version_changed": false,
   "network_settings_changed": false,
-  "runtime_sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae"
+  "runtime_sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
+  "followup": {
+    "baseline_commit": "7d0e0879eabd8faa4b6b614a083b8184c7053423",
+    "plugin_version": "1.0.73-mx.10",
+    "infuse_version_user_report": "8.5.6 (5763)",
+    "kinoapi_source": "https://kinoapi.com/api_video.html",
+    "firecore_interface": "https://support.firecore.com/hc/en-us/articles/215090997-API-for-Third-Party-Apps-Services",
+    "findings": [
+      "KinoPub documents media-video-link with type=http|hls|hls2|hls4 and real files[].file",
+      "Documented HLS URLs may end in .mp4; extension does not determine delivery",
+      "Firecore interface requires 8.4.7+; user version meets this, exact media compatibility remains unknown"
+    ],
+    "decision": "Add explicit one-off test without changing normal playback or settings; do not force HLS2 or call it a confirmed fix",
+    "runtime_changed": true,
+    "sha256": "79364f63674b3cbacfeaf353578110fe6ec9eb85dc6511d645dd13b68483a17f",
+    "device_tested": false,
+    "actual_manifest_or_segments_fetched": false
+  }
 }

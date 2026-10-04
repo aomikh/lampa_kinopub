@@ -1,37 +1,39 @@
 {
-  "prepared_at_utc": "2026-10-04T16:17:08.942049+00:00",
-  "version": "1.0.73-mx.9",
-  "baseline_commit": "71b15e3900f4c489992ef5b0d28efb71b8105206",
-  "baseline_published_sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
-  "bytes": 240082,
-  "sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
-  "javascript_tests_passed": 95,
+  "prepared_at_utc": "2026-10-04T17:11:24.802920+00:00",
+  "version": "1.0.73-mx.10",
+  "baseline_commit": "7d0e0879eabd8faa4b6b614a083b8184c7053423",
+  "baseline_published_sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
+  "bytes": 244946,
+  "sha256": "79364f63674b3cbacfeaf353578110fe6ec9eb85dc6511d645dd13b68483a17f",
+  "javascript_tests_passed": 108,
   "python_http_tests_passed": 16,
   "smoke_checks_passed": 20,
-  "confirmed_fixes": [
-    "Apple delegated paths no longer issue a duplicate manifest/video GET for logs",
-    "Core remembered quality cannot overwrite the selected URL for Apple delegated players",
-    "Stale row labels no longer constrain Apple delegated selection; explicit episode quality is consistent",
-    "No web playback recovery, pending web audio change or watched mark on Apple handoff",
-    "Synchronous core handoff failure reports KP-A1 without retry"
+  "purpose": "Explicit one-off HLS2 test for user-reported Infuse 8.5.6 (5763); not a confirmed playback or network fix",
+  "infuse_version_user_report": "8.5.6 (5763)",
+  "normal_infuse_delivery": "fresh direct file (http field)",
+  "test_infuse_delivery": "exact file via type=hls2, or fresh urls.hls2; selected video only",
+  "verified_code_behavior": [
+    "Exact selected quality and file identifier retained",
+    "Signed URL and position preserved",
+    "No Tizen proxy or media preflight",
+    "Bounded cancellation and failures, no fallback to another quality or format",
+    "Normal Infuse, VLC, Tizen, Watch UI and episode image tests pass",
+    "HLS diagnostics do not probe a manifest with file ranges"
   ],
-  "reference_lampa_core": "b4a13b6af7fe2f3bbbcb91f4eb434ab3378f8d5d",
-  "player_review": "audit/apple-players-review-20261004.md",
-  "native_tvos_fast_start_user_report": true,
-  "native_tvos_fast_start_measured_by_codex": false,
+  "own_remote_branches_before": [
+    "main"
+  ],
+  "playback_code_changed": true,
+  "infuse_delivery_changed_by_default": false,
   "new_version_loaded_on_device_confirmed": false,
   "device_playback_tested": false,
   "device_seek_tested": false,
   "speed_improvement_on_device_verified": false,
   "authenticated_media_tested": false,
+  "kinopub_hls2_compatibility_on_device_confirmed": false,
   "range_failure_root_cause_confirmed": false,
-  "infuse_delivery_changed": false,
   "settings_changed": false,
   "shadowrocket_changed": false,
   "ads_changed": false,
-  "episode_images_changed": false,
-  "own_remote_branches_before": [
-    "main"
-  ],
-  "playback_code_changed": true
+  "episode_images_changed": false
 }
