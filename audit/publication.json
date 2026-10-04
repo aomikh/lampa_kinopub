@@ -1,41 +1,43 @@
 {
-  "checked_at_utc": "2026-10-04T16:21:32.742Z",
+  "checked_at_utc": "2026-10-04T17:13:57.810Z",
   "repository": "aomikh/lampa_kinopub",
-  "code_commit": "d7ec4f858b1e51b5aceb2f494769f4c61d194827",
-  "version": "1.0.73-mx.9",
+  "code_commit": "0a37fed50033b4bc05f884e476970d50e2e9baf7",
+  "version": "1.0.73-mx.10",
   "published": true,
-  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37216349569",
+  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37219631712",
   "pages_workflow_conclusion": "success",
   "remote_branches": [
     "main"
   ],
   "history_rewritten": false,
   "published_plugin_path": "docs/kp.js",
-  "previous_code_commit": "c8f632613d34a5ed2906e916b1c9e306ab600df4",
-  "rollback_baseline_commit": "71b15e3900f4c489992ef5b0d28efb71b8105206",
+  "previous_code_commit": "d7ec4f858b1e51b5aceb2f494769f4c61d194827",
+  "rollback_baseline_commit": "7d0e0879eabd8faa4b6b614a083b8184c7053423",
   "results": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 240082,
-      "sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
+      "bytes": 244946,
+      "sha256": "79364f63674b3cbacfeaf353578110fe6ec9eb85dc6511d645dd13b68483a17f",
       "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Sun, 04 Oct 2026 16:19:58 GMT"
+      "last_modified": "Sun, 04 Oct 2026 17:12:54 GMT"
     },
     {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.9",
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.10",
       "status": 200,
-      "bytes": 240082,
-      "sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
+      "bytes": 244946,
+      "sha256": "79364f63674b3cbacfeaf353578110fe6ec9eb85dc6511d645dd13b68483a17f",
       "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Sun, 04 Oct 2026 16:19:58 GMT"
+      "last_modified": "Sun, 04 Oct 2026 17:12:54 GMT"
     }
   ],
+  "infuse_version_user_report": "8.5.6 (5763)",
   "new_version_loaded_on_apple_tv": false,
   "continuous_infuse_playback_verified": false,
   "speed_improvement_on_device_verified": false,
   "seek_on_device_verified": false,
+  "kinopub_hls2_compatibility_verified": false,
   "range_failure_root_cause_confirmed": false,
-  "native_fast_start_user_report_before_patch": true,
-  "native_speed_measured_by_codex": false
+  "normal_infuse_delivery_changed": false,
+  "vlc_fast_start_user_report_before_patch": true
 }
