@@ -1,10 +1,10 @@
 {
-  "checked_at_utc": "2026-10-04T12:52:39.385915+00:00",
+  "checked_at_utc": "2026-10-04T13:16:32.176155+00:00",
   "repository": "aomikh/lampa_kinopub",
-  "code_commit": "6457fc69877ca7cca4b5dbc9f1af628565b8a4f1",
-  "version": "1.0.73-mx.7",
+  "code_commit": "c8f632613d34a5ed2906e916b1c9e306ab600df4",
+  "version": "1.0.73-mx.8",
   "published": true,
-  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37203582492",
+  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37204977004",
   "pages_workflow_conclusion": "success",
   "remote_branches": [
     "main"
@@ -22,21 +22,22 @@
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 237811,
-      "sha256": "0d91cb653bc97870be49651f4cae3bdb7aca56a3bac4af8660edadd821b27d2c",
+      "bytes": 238260,
+      "sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
       "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Sun, 04 Oct 2026 12:52:16 GMT"
+      "last_modified": "Sun, 04 Oct 2026 13:15:53 GMT"
     },
     {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.7",
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.8",
       "status": 200,
-      "bytes": 237811,
-      "sha256": "0d91cb653bc97870be49651f4cae3bdb7aca56a3bac4af8660edadd821b27d2c",
+      "bytes": 238260,
+      "sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
       "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Sun, 04 Oct 2026 12:52:16 GMT"
+      "last_modified": "Sun, 04 Oct 2026 13:15:53 GMT"
     }
   ],
-  "previous_code_commit": "cc8ea27393111c317365ee9310adb0260eaee7fd",
-  "rollback_baseline_commit": "4dc87c464ad7304552065bcf77ded2e474132a7b",
-  "device_evidence": "audit/device-diagnostic-mx6-20261004.json"
+  "previous_code_commit": "6457fc69877ca7cca4b5dbc9f1af628565b8a4f1",
+  "rollback_baseline_commit": "ab423f10de62b0d2f1c39be7860c7eb832caed77",
+  "device_evidence": "audit/device-diagnostic-mx6-20261004.json",
+  "freeze_after_30s_user_report": true
 }
