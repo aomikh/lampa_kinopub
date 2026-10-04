@@ -15,5 +15,14 @@
   "published": true,
   "loaded_on_apple_tv_confirmed": false,
   "infuse_playback_confirmed": false,
-  "episode_artwork_on_device_confirmed": false
+  "episode_artwork_on_device_confirmed": false,
+  "subsequent_user_feedback": {
+    "reported_at": "2026-10-04T13:37:41+05:00",
+    "message": "Все отлично работает",
+    "source": "user_message_after_installation",
+    "overall_working_reported": true,
+    "individual_device_checks_enumerated": false,
+    "assistant_observed_device": false,
+    "plugin_code_changed": false
+  }
 }
