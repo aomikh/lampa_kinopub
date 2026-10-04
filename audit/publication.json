@@ -1,43 +1,41 @@
 {
-  "checked_at_utc": "2026-10-04T13:16:32.176155+00:00",
+  "checked_at_utc": "2026-10-04T16:21:32.742Z",
   "repository": "aomikh/lampa_kinopub",
-  "code_commit": "c8f632613d34a5ed2906e916b1c9e306ab600df4",
-  "version": "1.0.73-mx.8",
+  "code_commit": "d7ec4f858b1e51b5aceb2f494769f4c61d194827",
+  "version": "1.0.73-mx.9",
   "published": true,
-  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37204977004",
+  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37216349569",
   "pages_workflow_conclusion": "success",
   "remote_branches": [
     "main"
   ],
   "history_rewritten": false,
   "published_plugin_path": "docs/kp.js",
-  "previous_mx6_loaded_on_apple_tv": true,
-  "new_version_loaded_on_apple_tv": false,
-  "card_ui_on_device_verified": false,
-  "continuous_infuse_playback_verified": false,
-  "speed_improvement_on_device_verified": false,
-  "seek_on_device_verified": false,
-  "range_failure_root_cause_confirmed": false,
+  "previous_code_commit": "c8f632613d34a5ed2906e916b1c9e306ab600df4",
+  "rollback_baseline_commit": "71b15e3900f4c489992ef5b0d28efb71b8105206",
   "results": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 238260,
-      "sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
+      "bytes": 240082,
+      "sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
       "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Sun, 04 Oct 2026 13:15:53 GMT"
+      "last_modified": "Sun, 04 Oct 2026 16:19:58 GMT"
     },
     {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.8",
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.9",
       "status": 200,
-      "bytes": 238260,
-      "sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
+      "bytes": 240082,
+      "sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae",
       "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Sun, 04 Oct 2026 13:15:53 GMT"
+      "last_modified": "Sun, 04 Oct 2026 16:19:58 GMT"
     }
   ],
-  "previous_code_commit": "6457fc69877ca7cca4b5dbc9f1af628565b8a4f1",
-  "rollback_baseline_commit": "ab423f10de62b0d2f1c39be7860c7eb832caed77",
-  "device_evidence": "audit/device-diagnostic-mx6-20261004.json",
-  "freeze_after_30s_user_report": true
+  "new_version_loaded_on_apple_tv": false,
+  "continuous_infuse_playback_verified": false,
+  "speed_improvement_on_device_verified": false,
+  "seek_on_device_verified": false,
+  "range_failure_root_cause_confirmed": false,
+  "native_fast_start_user_report_before_patch": true,
+  "native_speed_measured_by_codex": false
 }
