@@ -126,15 +126,15 @@
   }
 
   function resourceInfo(url) {
-    var info = { scheme: '', host: '', kind: 'unknown' };
+    var info = { scheme: '', host: '', kind_hint: 'unknown' };
     if (typeof url !== 'string') return info;
     try {
       var parsed = new URL(url);
       info.scheme = parsed.protocol.replace(':', '');
       info.host = parsed.hostname;
-      info.kind = /\.m3u8(?:$|\/)/i.test(parsed.pathname) ? 'manifest' :
-        /\.(mp4|mkv|mov|m4v|ts)$/i.test(parsed.pathname) ? 'file' : 'unknown';
-      if (url.indexOf(KP_PROXY_URL + '/manifest-proxy?') === 0) info.kind = 'manifest-proxy';
+      info.kind_hint = /\.m3u8(?:$|\/)/i.test(parsed.pathname) ? 'manifest-extension' :
+        /\.(mp4|mkv|mov|m4v|ts)$/i.test(parsed.pathname) ? 'file-extension' : 'unknown';
+      if (url.indexOf(KP_PROXY_URL + '/manifest-proxy?') === 0) info.kind_hint = 'manifest-proxy-path';
     } catch (e) {}
     return info;
   }
@@ -276,7 +276,7 @@
     try {
       window.location.assign(url);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
-        resource: resourceInfo(play.url), quality: play._kpQuality,
+        resource: resourceInfo(play.url), deliveryField: 'http', quality: play._kpQuality,
         entries: (play.playlist || [play]).length, callbacks: false
       });
       return true;

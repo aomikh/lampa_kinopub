@@ -1,0 +1,151 @@
+{
+  "checked_at_utc": "2026-10-04T07:06:11.213950+00:00",
+  "per_get_read_limit": 1024,
+  "device_route_tested": false,
+  "results": [
+    {
+      "label": "Firecore documented short MP4",
+      "origin": {
+        "scheme": "https",
+        "host": "files.firecore.com"
+      },
+      "checks": [
+        {
+          "method": "HEAD",
+          "redirects": [],
+          "final": {
+            "scheme": "https",
+            "host": "files.firecore.com"
+          },
+          "status": 200,
+          "headers": {
+            "Content-Type": "video/mp4",
+            "Content-Length": "1137884",
+            "Content-Range": null,
+            "Accept-Ranges": "bytes",
+            "Transfer-Encoding": null,
+            "Content-Encoding": null,
+            "X-Cache": "Hit from cloudfront"
+          }
+        },
+        {
+          "method": "GET",
+          "redirects": [],
+          "final": {
+            "scheme": "https",
+            "host": "files.firecore.com"
+          },
+          "status": 206,
+          "headers": {
+            "Content-Type": "video/mp4",
+            "Content-Length": "1024",
+            "Content-Range": "bytes 0-1023/1137884",
+            "Accept-Ranges": null,
+            "Transfer-Encoding": null,
+            "Content-Encoding": null,
+            "X-Cache": "Hit from cloudfront"
+          },
+          "bytes_read": 1024,
+          "range_honored": true,
+          "body_kind": "mp4"
+        }
+      ]
+    },
+    {
+      "label": "Public Mux test manifest",
+      "origin": {
+        "scheme": "https",
+        "host": "test-streams.mux.dev"
+      },
+      "checks": [
+        {
+          "method": "HEAD",
+          "redirects": [],
+          "final": {
+            "scheme": "https",
+            "host": "test-streams.mux.dev"
+          },
+          "status": 200,
+          "headers": {
+            "Content-Type": "audio/mpegurl",
+            "Content-Length": "752",
+            "Content-Range": null,
+            "Accept-Ranges": "bytes",
+            "Transfer-Encoding": null,
+            "Content-Encoding": null,
+            "X-Cache": "HIT"
+          }
+        },
+        {
+          "method": "GET",
+          "redirects": [],
+          "final": {
+            "scheme": "https",
+            "host": "test-streams.mux.dev"
+          },
+          "status": 206,
+          "headers": {
+            "Content-Type": "audio/mpegurl",
+            "Content-Length": "752",
+            "Content-Range": "bytes 0-751/752",
+            "Accept-Ranges": "bytes",
+            "Transfer-Encoding": null,
+            "Content-Encoding": null,
+            "X-Cache": "HIT"
+          },
+          "bytes_read": 752,
+          "range_honored": true,
+          "body_kind": "hls-manifest"
+        }
+      ]
+    },
+    {
+      "label": "Deployed reducer with public Mux test manifest",
+      "origin": {
+        "scheme": "https",
+        "host": "kinopub.fastcdn.pics"
+      },
+      "checks": [
+        {
+          "method": "HEAD",
+          "redirects": [],
+          "final": {
+            "scheme": "https",
+            "host": "kinopub.fastcdn.pics"
+          },
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",
+            "Content-Length": null,
+            "Content-Range": null,
+            "Accept-Ranges": null,
+            "Transfer-Encoding": null,
+            "Content-Encoding": null,
+            "X-Cache": "MISS"
+          }
+        },
+        {
+          "method": "GET",
+          "redirects": [],
+          "final": {
+            "scheme": "https",
+            "host": "kinopub.fastcdn.pics"
+          },
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",
+            "Content-Length": null,
+            "Content-Range": null,
+            "Accept-Ranges": null,
+            "Transfer-Encoding": "chunked",
+            "Content-Encoding": null,
+            "X-Cache": "HIT"
+          },
+          "bytes_read": 53,
+          "range_honored": false,
+          "body_kind": "hls-manifest"
+        }
+      ]
+    }
+  ]
+}
