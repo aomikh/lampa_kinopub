@@ -1,0 +1,33 @@
+{
+  "checked_at_utc": "2026-10-04T14:04:55.998302+00:00",
+  "repository_baseline": "3dd0cea9018c1f1426206410e712299777f0056f",
+  "plugin_version": "1.0.73-mx.8",
+  "published_sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
+  "published_matches_local": true,
+  "runtime_changed": false,
+  "new_plugin_defect_confirmed": false,
+  "fresh_problem_media_url_available": false,
+  "real_media_bytes_read": 0,
+  "device_playback_fixed": false,
+  "new_log": {
+    "sha256": "243dd89ae186d8fef89aa0251da5464dfee1c4cdafe591709133c134e77f3e2d",
+    "archive_bytes": 163462,
+    "observed_host_suffix": "ams-static-15.cdntogo.net",
+    "direct_connections": 3,
+    "remote_peer_closure_messages": 2,
+    "third_connection_closed_in_available_excerpt": false,
+    "http_range_exchange_visible": false,
+    "each_connection_attributed_to_infuse": false,
+    "raw_log_or_secret_paths_published": false
+  },
+  "network_trial": {
+    "repository": "aomikh/shadowrocket-configs",
+    "revert_commit": "5f655809ef5e91d53aabba6c55944cd545adb4d3",
+    "revert_read_from_github": true,
+    "changed_in_this_task": false,
+    "revert_applied_on_device_confirmed": false,
+    "previous_advice_to_apply_direct_superseded": true
+  },
+  "boundary": "KinoPub resolves the exact file; the plugin hands off a fresh direct URL. Infuse owns subsequent media HTTP requests. Firecore's documented launch interface has no Range or buffer-control parameter.",
+  "next_evidence": "Installed Infuse version and either a bounded check of the authorized fresh problem URL or accessible Infuse diagnostics/support findings covering the failed range request. A Firecore report identifier alone is not readable log content."
+}
