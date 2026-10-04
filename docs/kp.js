@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.4';
+  var PLUGIN_VERSION  = '1.0.73-mx.5';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -2279,6 +2279,19 @@
     };
   }
 
+  // Offer only actual direct-file qualities, without resolving every file
+  // or changing the saved quality limit/player. No speculative CDN probes.
+  function infuseQualityOptions(files) {
+    var seen = {};
+    return (files || []).filter(function (file) {
+      if (seen[file.quality] || !pickStream(files, 'http', file.quality + 'p', true)) return false;
+      seen[file.quality] = true;
+      return true;
+    }).map(function (file) {
+      return { title: file.quality + 'p', quality: file.quality + 'p' };
+    });
+  }
+
   function buildSubtitles(subs) {
     if (!subs || !subs.length) return [];
     return subs.map(function (s) {
@@ -2720,7 +2733,7 @@
       infuseNetwork.clear();
     }
 
-    function launchInfuse(item, items) {
+    function launchInfuse(item, items, targetQuality) {
       if (infuseLaunching || !raw || !raw.id) return;
       infuseLaunching = true;
       var generation = ++infuseGeneration;
@@ -2769,7 +2782,7 @@
       // that exact file once, without fetching the same item a second time.
       // Episodes retain their item refresh for the upcoming playlist.
       if (item.kp.kind === 'movie') {
-        var selectedMovie = toPlayElement(item, 'infuse');
+        var selectedMovie = toPlayElement(item, 'infuse', targetQuality);
         if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
       }
       armTimeout();
@@ -2794,7 +2807,7 @@
           Object.keys(element).forEach(function (key) { copy[key] = element[key]; });
           copy.kp = { kind: element.kp.kind, files: parseFiles(video.files),
             audios: video.audios || [], subtitles: video.subtitles || [] };
-          return toPlayElement(copy, 'infuse');
+          return toPlayElement(copy, 'infuse', targetQuality);
         }
         var play = refreshed(item);
         if (!play) { fail('no direct file at selected quality'); return; }
@@ -3089,9 +3102,9 @@
       return null;
     }
 
-    function toPlayElement(element, actualPlayer) {
+    function toPlayElement(element, actualPlayer, targetQuality) {
       actualPlayer = detectActualPlayer(actualPlayer);
-      var stream = streamForElement(element, element.quality, actualPlayer);
+      var stream = streamForElement(element, targetQuality == null ? element.quality : targetQuality, actualPlayer);
       if (!stream) return null;
 
       // Title formatting:
@@ -3296,7 +3309,7 @@
         similars: waitSimilars,
         onEnter: function (item, html, options) {
           var actualPlayer = detectActualPlayer(options && options.player);
-          if (actualPlayer === 'infuse') { launchInfuse(item, items); return; }
+          if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality); return; }
           var play = toPlayElement(item, actualPlayer);
           if (!play) {
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
@@ -4022,8 +4035,8 @@
           self.contextMenu({
             html: html,
             element: element,
-            onPlay: function (player) {
-              if (params.onEnter) params.onEnter(element, html, { player: player });
+            onPlay: function (player, quality) {
+              if (current() && params.onEnter) params.onEnter(element, html, { player: player, quality: quality });
             },
             onFile: function (call) {
               if (params.onContextMenu) params.onContextMenu(element, html, {}, call);
@@ -4093,6 +4106,9 @@
           if (Lampa.Platform.is('android')) menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Android', player: 'android' });
           if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
             menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Infuse', player: 'infuse' });
+            if (infuseQualityOptions(params.element.kp && params.element.kp.files).length) {
+              menu.push({ title: Lampa.Lang.translate('kp_infuse_quality'), infuseQuality: true });
+            }
           }
           menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Lampa', player: 'lampa' });
           menu.push({ title: Lampa.Lang.translate('online_video'), separator: true });
@@ -4115,6 +4131,18 @@
               if (a.clearallmark) params.onClearAllMark();
               if (a.timeclearall) params.onClearAllTime();
               Lampa.Controller.toggle(enabled);
+              if (a.infuseQuality) {
+                Lampa.Select.show({
+                  title: Lampa.Lang.translate('kp_infuse_quality'),
+                  items: infuseQualityOptions(params.element.kp && params.element.kp.files),
+                  onBack: function () { Lampa.Controller.toggle(enabled); },
+                  onSelect: function (b) {
+                    Lampa.Controller.toggle(enabled);
+                    if (params.onPlay) params.onPlay('infuse', b.quality);
+                  }
+                });
+                return;
+              }
               if (a.player) {
                 if (a.player !== 'infuse') Lampa.Player.runas(a.player);
                 if (params.onPlay) params.onPlay(a.player);
@@ -4578,6 +4606,7 @@
         ua: 'Дивитися на kinopub'
       },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
+      kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
       kp_infuse_check: { ru: 'Диагностика Infuse', en: 'Infuse diagnostics', ua: 'Діагностика Infuse' },
       kp_infuse_check_descr: { ru: 'Проверить доступность последнего файла после ошибки. Показывает безопасный отчёт для снимка экрана.',
         en: 'Check the last file after an error. Shows a safe report for a screenshot.', ua: 'Перевірити останній файл після помилки.' },

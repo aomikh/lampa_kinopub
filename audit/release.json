@@ -1,12 +1,14 @@
 {
-  "prepared_at_utc": "2026-10-04T09:30:03.296271+00:00",
-  "version": "1.0.73-mx.4",
-  "baseline_commit": "009faf935973bb6a0b8070047287bc79fe7c6d38",
-  "bytes": 224473,
-  "sha256": "2cabdbf27cc1d4ea8ebf637ab5f18e236aed8a5f3d684c5e154774d5dbb5574c",
-  "tests_passed": 41,
+  "prepared_at_utc": "2026-10-04T10:20:00+00:00",
+  "version": "1.0.73-mx.5",
+  "baseline_commit": "17f6976d28f83d883f952fa48181594df2e24702",
+  "bytes": 226088,
+  "sha256": "7de04c4aa0dbc369ed4eb8accbee3b5980e8e5bf0d510276829d17c5f932443e",
+  "tests_passed": 50,
   "smoke_checks_passed": 20,
-  "startup_regression_failed_on_mx3": true,
+  "quality_regression_tests_failed_on_mx4": 4,
+  "ordinary_launch_quality_unchanged": true,
+  "speed_improvement_on_device_verified": false,
   "device_playback_tested": false,
   "authenticated_media_tested": false,
   "buffering_root_cause_confirmed": false,
@@ -16,7 +18,7 @@
   "local_branches_after": [
     "main"
   ],
-  "deleted_published_files": [
+  "previously_deleted_published_files": [
     "docs/releases/kp-1.0.73-mx.2.js"
   ]
 }

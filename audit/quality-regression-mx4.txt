@@ -1,0 +1,120 @@
+✖ Infuse quality menu exposes only real, unique choices under the saved limit without network work (9.167462ms)
+✖ one-off Infuse quality resolves only that file; next ordinary launch keeps the original quality (10.21865ms)
+✖ URL-only movie refresh respects explicit Infuse quality without modifying signed links (2.928482ms)
+✖ explicit Infuse quality applies to the whole playlist and stops before a missing quality (5.397911ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 99.653962
+
+✖ failing tests:
+
+test at ../../../../tmp/kp-mx4-regression.FPX6jb/tests/infuse-quality.test.cjs:25:1
+✖ Infuse quality menu exposes only real, unique choices under the saved limit without network work (9.167462ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'player_lauch - Infuse',
+  +   'player_lauch - Lampa',
+  +   'online_video',
+  +   'kp_try_format',
+  +   'torrent_parser_label_title',
+  +   'torrent_parser_label_cancel_title',
+  +   'time_reset',
+  +   'copy_link',
+  +   'more',
+  +   'online_clear_all_marks',
+  +   'online_clear_all_timecodes'
+  -   '1080p',
+  -   '720p'
+    ]
+
+      at TestContext.<anonymous> (/tmp/kp-mx4-regression.FPX6jb/tests/infuse-quality.test.cjs:27:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'player_lauch - Infuse', 'player_lauch - Lampa', 'online_video', 'kp_try_format', 'torrent_parser_label_title', 'torrent_parser_label_cancel_title', 'time_reset', 'copy_link', 'more', 'online_clear_all_marks', 'online_clear_all_timecodes' ],
+    expected: [ '1080p', '720p' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/kp-mx4-regression.FPX6jb/tests/playback.test.cjs:241:1
+✖ one-off Infuse quality resolves only that file; next ordinary launch keeps the original quality (10.21865ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '/private-fixture/file-1080.mp4'
+  - '/private-fixture/file-720.mp4'
+                           ^
+
+      at TestContext.<anonymous> (/tmp/kp-mx4-regression.FPX6jb/tests/playback.test.cjs:247:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/private-fixture/file-1080.mp4',
+    expected: '/private-fixture/file-720.mp4',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/kp-mx4-regression.FPX6jb/tests/playback.test.cjs:257:1
+✖ URL-only movie refresh respects explicit Infuse quality without modifying signed links (2.928482ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26='
+  - 'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26=&q=720'
+
+      at TestContext.<anonymous> (/tmp/kp-mx4-regression.FPX6jb/tests/playback.test.cjs:263:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26=',
+    expected: 'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26=&q=720',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/kp-mx4-regression.FPX6jb/tests/playback.test.cjs:265:1
+✖ explicit Infuse quality applies to the whole playlist and stops before a missing quality (5.397911ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26=',
+  +   'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26='
+  -   'https://video.example/direct/720.mp4',
+  -   'https://video.example/direct/720.mp4'
+    ]
+
+      at TestContext.<anonymous> (/tmp/kp-mx4-regression.FPX6jb/tests/playback.test.cjs:270:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26=', 'https://video.example/secret-path-token/direct/file.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=ru&preload=1&x=?%26=' ],
+    expected: [ 'https://video.example/direct/720.mp4', 'https://video.example/direct/720.mp4' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

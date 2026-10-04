@@ -1,4 +1,4 @@
-[KP:boot] kp.js v1.0.73-mx.4 starting { session: 'uuuuuuuu', app: 200, ua: 'node-smoke' }
+[KP:boot] kp.js v1.0.73-mx.5 starting { session: 'uuuuuuuu', app: 200, ua: 'node-smoke' }
 [KP:auth] no token at startup
 [KP:boot] kp.js initialized
 OK   manifest set
@@ -26,5 +26,3 @@ OK   listener.cb runs without throwing
 OK   component instantiates
 
 === 20 pass, 0 fail ===
-[KP:player-evt] Lampa.Player.listener unavailable
-[KP:player-evt] Lampa.PlayerVideo.listener unavailable

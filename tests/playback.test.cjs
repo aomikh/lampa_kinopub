@@ -237,6 +237,73 @@ test('loaded movie with a file reference needs only one request before Infuse di
   assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed);
   assert.equal(rt.internal.length,0);
 });
+
+test('one-off Infuse quality resolves only that file; next ordinary launch keeps the original quality', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'inner'}});
+  const {src,view,item}=movieWithFile(rt);
+  src.find(22);rt.requests.at(-1).ok({item});
+  const before=rt.requests.length;
+  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
+  assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/private-fixture/file-720.mp4');
+  rt.requests.at(-1).ok({url:signed+'&quality=720'});
+  assert.equal(rt.requests.length-before,1);
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&quality=720');
+  assert.equal(rt.storage.kp_max_quality,'1080');assert.equal(rt.storage.player,'inner');
+  assert.equal(view.items[0].quality.trim(),'1080p');
+  view.options.onEnter(view.items[0],{}, {player:'infuse'});
+  assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/private-fixture/file-1080.mp4');
+  assert.equal(rt.internal.length,0);
+});
+test('URL-only movie refresh respects explicit Infuse quality without modifying signed links', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item}=source(rt);
+  const fresh=JSON.parse(JSON.stringify(item));fresh.videos[0].files[1].url.http=signed+'&q=720';
+  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
+  rt.requests.at(-1).ok({item:fresh});
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&q=720');
+});
+test('explicit Infuse quality applies to the whole playlist and stops before a missing quality', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item}=source(rt,true);
+  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
+  rt.requests.at(-1).ok({item});
+  assert.deepEqual(new URL(rt.launches[0]).searchParams.getAll('url'),[files[1].url.http,files[1].url.http]);
+  const fresh=JSON.parse(JSON.stringify(item));fresh.seasons[0].episodes[1].files=[files[0]];
+  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
+  rt.requests.at(-1).ok({item:fresh});
+  assert.deepEqual(new URL(rt.launches[1]).searchParams.getAll('url'),[files[1].url.http]);
+});
+test('disappearing explicit quality fails instead of silently substituting a heavier file', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view,item}=source(rt);
+  const fresh=JSON.parse(JSON.stringify(item));fresh.videos[0].files=[files[0]];
+  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
+  rt.requests.at(-1).ok({item:fresh});rt.tickAll();
+  assert.equal(rt.launches.length,0);assert.match(rt.notices.at(-1),/KP-I2/);
+});
+test('quality selection preserves requested subtitles regardless of source-file embed metadata', () => {
+  for (const external of [false,true]) {
+    const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse',kp_subtitles_enabled:true}});
+    const {src,view,item}=movieWithFile(rt);
+    item.videos[0].subtitles=[{embed:true,url:'https://subs.example/embedded-copy.srt',lang:'rus'}];
+    if(external) item.videos[0].subtitles.push({embed:false,url:'https://subs.example/external.srt',lang:'eng'});
+    src.find(22);rt.requests.at(-1).ok({item});
+    view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});rt.requests.at(-1).ok({url:signed});
+    const subs=new URL(rt.launches[0]).searchParams.getAll('sub');
+    assert.deepEqual(subs,['https://subs.example/embedded-copy.srt']);
+  }
+});
+test('internal and Infuse players retain existing subtitle behavior', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'inner',kp_subtitles_enabled:true}});
+  const {src,view,item}=movieWithFile(rt);
+  item.videos[0].subtitles=[{embed:true,url:'https://subs.example/embedded-copy.srt'},
+    {url:'https://subs.example/unknown.srt'}];
+  src.find(22);rt.requests.at(-1).ok({item});
+  view.options.onEnter(view.items[0],{}, {player:'inner'});
+  assert.equal(rt.internal[0].subtitles.length,2);
+  view.options.onEnter(view.items[0],{}, {player:'infuse'});rt.requests.at(-1).ok({url:signed});
+  assert.equal(new URL(rt.launches[0]).searchParams.get('sub'),'https://subs.example/embedded-copy.srt');
+});
 test('fast movie launch remains cancellable and never retries old media on timeout', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
   const {src,view,item}=movieWithFile(rt,{noLinks:true});
