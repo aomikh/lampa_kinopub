@@ -101,11 +101,27 @@ test('diagnostics redact nested URL paths, encoded URL values, token keys and ma
   const rt = runtime();
   rt.api.dispatchInfuse({_kpInfuse:true,url:signed,title:'Fixture'});
   const safe = JSON.stringify(rt.api.redactDiagnostic({url:signed,access_token:'fixture-secret',keep:['/secret-path-token/file'],
-    nested:{urls:{http:signed}},message:'Bearer fixture-secret '+signed}));
+    nested:{urls:{http:signed}},encoded:encodeURIComponent(signed),message:'Bearer fixture-secret '+signed}));
   assert.equal(safe.includes('secret-path-token'),false);
   assert.equal(safe.includes('fixture-secret'),false);
   assert.equal(JSON.stringify(rt.logs).includes('secret-path-token'),false);
   assert.match(safe,/video.example/);
+});
+test('Tizen launch still wraps the current episode and every playlist entry', () => {
+  const rt=runtime({platform:'tizen',storage:{kp_token:'dummy-fixture',player:'tizen'}});rt.api.setProxy(true);
+  const {view}=source(rt,true);view.options.onEnter(view.items[0]);
+  assert.equal(rt.launches.length,0);assert.equal(rt.internal.length,1);
+  assert.equal(rt.internal[0].quality,undefined);
+  assert.match(rt.internal[0].url,/manifest-proxy/);
+  assert.equal(rt.playlists[0].length,2);
+  rt.playlists[0].forEach(p=>assert.match(p.url,/manifest-proxy/));
+});
+test('one-off internal player remains internal when the saved player is Infuse', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
+  const {view}=source(rt);view.options.onEnter(view.items[0],{}, {player:'lampa'});
+  assert.equal(rt.launches.length,0);assert.equal(rt.internal.length,1);
+  assert.match(rt.internal[0].url,/hls2/);
+  assert.equal(rt.requests.length,1);
 });
 test('an oversized selected link is rejected rather than playing a later episode', () => {
   const rt = runtime();

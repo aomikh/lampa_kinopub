@@ -5,7 +5,7 @@ const vm = require('node:vm');
 
 function runtime(options = {}) {
   const storage = {kp_max_quality: '1080', kp_format: 'auto', player: 'inner', ...options.storage};
-  const requests = [], launches = [], internal = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [];
+  const requests = [], launches = [], internal = [], playlists = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [];
   const timers = new Map();
   let timerId = 0;
   function setTimer(fn) { timers.set(++timerId, fn); return timerId; }
@@ -52,7 +52,7 @@ function runtime(options = {}) {
       remove: (a,v) => a.splice(a.indexOf(v),1)},
     Platform: {is: p => p === (options.platform || 'apple_tv')},
     Noty: {show: text => notices.push(text)},
-    Player: {play: data => internal.push(data), playlist() {}, runas() {}},
+    Player: {play: data => internal.push(data), playlist: list => playlists.push(list), runas() {}},
     Scroll: moduleStub, Explorer: moduleStub, Filter: moduleStub,
     Template: {get(name, data, text) {
       if(text) return '<rate>'+data.rate+'</rate>';
@@ -75,7 +75,7 @@ function runtime(options = {}) {
     'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
-  return {api: sandbox.window.testAPI, storage, requests, launches, internal, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus,
+  return {api: sandbox.window.testAPI, storage, requests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus,
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }
 module.exports = {runtime};

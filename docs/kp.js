@@ -14,7 +14,10 @@
 (function () {
   'use strict';
 
-  if (window.online_kp_plugin) return;
+  if (window.online_kp_plugin) {
+    console.warn('[KP:boot] another online_kp plugin is already active; remove duplicate extensions and fully restart Lampa');
+    return;
+  }
   if (typeof Lampa === 'undefined' || !Lampa.Manifest) return;
   if (Lampa.Manifest.app_digital && Lampa.Manifest.app_digital < 155) return;
   window.online_kp_plugin = true;
@@ -43,8 +46,8 @@
   var KP_BLOB_TEST = false;
 
   // ── HLS4 MANIFEST PROXY (production solution from v1.0.30) ─────────────
-  // Plugin pings KP_PROXY_URL/health on startup; if reachable, switches
-  // into proxy mode (forces HLS4, routes master.m3u8 through proxy).
+  // Plugin pings KP_PROXY_URL/health on startup. Availability is separate
+  // from policy: only compatible Tizen launches in auto/HLS4 use the proxy.
   // Otherwise falls back to v1.0.28 behaviour (HLS2 stable but voice
   // picker decorative).
   //
@@ -64,7 +67,7 @@
 
   // Set by checkProxyAvailability() at startup; gates voice switching.
   // null  — not yet checked
-  // true  — health endpoint responded, proxy in use
+  // true  — health endpoint responded; playback policy still decides usage
   // false — unreachable, fall back to HLS2-only mode
   var kpProxyAvailable = null;
 
@@ -101,7 +104,8 @@
     if (/^(body|responseText|keep|master|path|stack)$/i.test(key || '')) return '[redacted]';
     if (typeof value === 'string') {
       if (/^(url|src|file|failedUrl)$/i.test(key || '')) return resourceInfo(value);
-      return value.replace(/(?:https?|infuse|blob|data):[^\s"'<>]+/gi, function (url) {
+      return value.replace(/(?:https?|infuse|blob|data)(?:%3a|%253a)[^\s"'<>]+/gi, '[redacted-url]')
+        .replace(/(?:https?|infuse|blob|data):[^\s"'<>]+/gi, function (url) {
         var info = resourceInfo(url);
         return info.host ? info.scheme + '://' + info.host + '/[redacted]' : '[redacted-url]';
       }).replace(/(Bearer\s+)[^\s]+/gi, '$1[redacted]')
@@ -4830,10 +4834,8 @@
     // Tizen app crash on HEVC 4K initial play. See setupKpPlayerPatch().
     setupKpPlayerPatch();
 
-    // Probe public manifest-proxy. If reachable, kpProxyAvailable=true and
-    // future launches will route HLS4 master through it (gives stable 4K +
-    // working voice switch). If unreachable (proxy down, no internet, etc),
-    // plugin transparently falls back to v1.0.28 HLS2-only mode.
+    // Probe availability only; compatible Tizen launches may use the
+    // reducer. Infuse always uses the service's direct-file URL.
     checkProxyAvailability();
 
     Logger.info('boot', 'kp.js initialized');
