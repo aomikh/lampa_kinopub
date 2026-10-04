@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-04",
+  "baseline_commit": "24e517e1567b9e679de077052e767bc8bd52860a",
+  "plugin_version": "1.0.73-mx.9",
+  "user_report": "VLC starts immediately from Lampa; exact player settings and media resource not captured",
+  "code_auto_delivery": {
+    "vlc": "hls2 with existing HLS fallbacks",
+    "infuse": "fresh direct file via real file identifier and type=http"
+  },
+  "official_release": "https://community.firecore.com/t/infuse-8-5-6-now-available/60886",
+  "official_clarification": "https://community.firecore.com/t/m3u-playlist-support/14097/247",
+  "clarification_fetched_via": "https://community.firecore.com/t/14097/254.json",
+  "clarification_author": "james (Firecore team)",
+  "clarification_date": "2026-10-02",
+  "clarification_summary": "8.5.6 supports basic M3U8 collections of direct video links and paths, including added local shares. Not every M3U8 use case is supported; additional types are planned. This is not confirmation of KinoPub HLS2 compatibility.",
+  "limits": [
+    "No inference that all on-demand HLS is unsupported merely because live streaming is not yet supported",
+    "No authenticated KinoPub HLS manifest or installed Infuse version available",
+    "No access to Apple TV; no test of exact resource, audio tracks, seek, resume or first frame"
+  ],
+  "decision": "Do not force HLS2 into Infuse or change direct-file validation without a compatible-client test; ask only for installed Infuse version first",
+  "runtime_changed": false,
+  "version_changed": false,
+  "network_settings_changed": false,
+  "runtime_sha256": "83b89c50b54f1db6595f3c58bab0bf63248a8d2704856ff96ab553d8736134ae"
+}
