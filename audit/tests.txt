@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: TMDB frame has priority; missing still_path falls back to that episode thumbnail
+ok 1 - TMDB frame has priority; missing still_path falls back to that episode thumbnail
+  ---
+  duration_ms: 7.114038
+  type: 'test'
+  ...
+# Subtest: confirmed thumbnail string and relative media base are handled without casting opaque objects
+ok 2 - confirmed thumbnail string and relative media base are handled without casting opaque objects
+  ---
+  duration_ms: 2.150266
+  type: 'test'
+  ...
+# Subtest: load failure and timeout advance once; two unavailable images finish as a placeholder
+ok 3 - load failure and timeout advance once; two unavailable images finish as a placeholder
+  ---
+  duration_ms: 5.192408
+  type: 'test'
+  ...
+# Subtest: late image event is ignored after cancellation or after moving to the fallback
+ok 4 - late image event is ignored after cancellation or after moving to the fallback
+  ---
+  duration_ms: 2.971686
+  type: 'test'
+  ...
+# Subtest: numeric episode identifiers match exactly within the right season
+ok 5 - numeric episode identifiers match exactly within the right season
+  ---
+  duration_ms: 2.669459
+  type: 'test'
+  ...
+# Subtest: source retains thumbnail across extractData and filtered card creation
+ok 6 - source retains thumbnail across extractData and filtered card creation
+  ---
+  duration_ms: 5.594143
+  type: 'test'
+  ...
+# Subtest: KinoPub identity cannot be sent as a TMDB identifier; a different selected series uses KP only
+ok 7 - KinoPub identity cannot be sent as a TMDB identifier; a different selected series uses KP only
+  ---
+  duration_ms: 2.291799
+  type: 'test'
+  ...
+# Subtest: cards render before one season request finishes and are enriched in place
+ok 8 - cards render before one season request finishes and are enriched in place
+  ---
+  duration_ms: 4.914628
+  type: 'test'
+  ...
+# Subtest: rapid season switch rejects old metadata and image callbacks
+ok 9 - rapid season switch rejects old metadata and image callbacks
+  ---
+  duration_ms: 2.365731
+  type: 'test'
+  ...
+# Subtest: closing component clears image and season timers and prevents late writes
+ok 10 - closing component clears image and season timers and prevents late writes
+  ---
+  duration_ms: 1.873758
+  type: 'test'
+  ...
+# Subtest: temporary season failures are retried; valid season result is cached once per season
+ok 11 - temporary season failures are retried; valid season result is cached once per season
+  ---
+  duration_ms: 1.608308
+  type: 'test'
+  ...
+# Subtest: both absent sources show the episode number without requesting a broken image
+ok 12 - both absent sources show the episode number without requesting a broken image
+  ---
+  duration_ms: 2.935611
+  type: 'test'
+  ...
+# Subtest: context menu one-off Infuse is explicit and does not overwrite player settings
+ok 13 - context menu one-off Infuse is explicit and does not overwrite player settings
+  ---
+  duration_ms: 3.250446
+  type: 'test'
+  ...
+# Subtest: Infuse selects a real http field; Tizen retains HLS4 proxy and HLS2 fallback
+ok 14 - Infuse selects a real http field; Tizen retains HLS4 proxy and HLS2 fallback
+  ---
+  duration_ms: 7.469775
+  type: 'test'
+  ...
+# Subtest: explicit HLS2 wins over a healthy proxy; non-Tizen stays out of the reducer
+ok 15 - explicit HLS2 wins over a healthy proxy; non-Tizen stays out of the reducer
+  ---
+  duration_ms: 5.108822
+  type: 'test'
+  ...
+# Subtest: one-off Infuse is chosen before format and does not change the saved player
+ok 16 - one-off Infuse is chosen before format and does not change the saved player
+  ---
+  duration_ms: 3.766926
+  type: 'test'
+  ...
+# Subtest: signed query and path survive exactly one layer of encoding; play has no playlist parameter
+ok 17 - signed query and path survive exactly one layer of encoding; play has no playlist parameter
+  ---
+  duration_ms: 3.124866
+  type: 'test'
+  ...
+# Subtest: no direct resource or selected quality fails without substituting HLS or another quality
+ok 18 - no direct resource or selected quality fails without substituting HLS or another quality
+  ---
+  duration_ms: 2.178278
+  type: 'test'
+  ...
+# Subtest: episode list is refreshed once; every transferred resource is a direct file
+ok 19 - episode list is refreshed once; every transferred resource is a direct file
+  ---
+  duration_ms: 4.101761
+  type: 'test'
+  ...
+# Subtest: dispatch error has no retry and no mark; closed source rejects late refresh
+ok 20 - dispatch error has no retry and no mark; closed source rejects late refresh
+  ---
+  duration_ms: 2.381004
+  type: 'test'
+  ...
+# Subtest: identity mismatch and hung refresh cannot launch stale media
+ok 21 - identity mismatch and hung refresh cannot launch stale media
+  ---
+  duration_ms: 3.762108
+  type: 'test'
+  ...
+# Subtest: diagnostics redact nested URL paths, encoded URL values, token keys and manifest content
+ok 22 - diagnostics redact nested URL paths, encoded URL values, token keys and manifest content
+  ---
+  duration_ms: 1.902352
+  type: 'test'
+  ...
+# Subtest: Tizen launch still wraps the current episode and every playlist entry
+ok 23 - Tizen launch still wraps the current episode and every playlist entry
+  ---
+  duration_ms: 2.56441
+  type: 'test'
+  ...
+# Subtest: one-off internal player remains internal when the saved player is Infuse
+ok 24 - one-off internal player remains internal when the saved player is Infuse
+  ---
+  duration_ms: 2.843031
+  type: 'test'
+  ...
+# Subtest: an oversized selected link is rejected rather than playing a later episode
+ok 25 - an oversized selected link is rejected rather than playing a later episode
+  ---
+  duration_ms: 1.94788
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 122.032224

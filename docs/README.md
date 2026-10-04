@@ -7,7 +7,7 @@
 Прямая ссылка плагина:
 
 ```
-https://mainsync-afk.github.io/lampa_kinopub/kp.js
+https://aomikh.github.io/lampa_kinopub/kp.js
 ```
 
 В Lampa: Настройки → Расширения → Добавить плагин → вставить URL → Сохранить.
@@ -37,7 +37,7 @@ https://mainsync-afk.github.io/lampa_kinopub/kp.js
 
 ```
 .
-├─ github/        # содержимое GitHub Pages (kp.js, index.html)
+├─ docs/        # содержимое GitHub Pages (kp.js, index.html)
 │  └─ kp.js       # сам плагин
 ├─ log-server/    # мини HTTP сервер для удалённого логирования
 └─ filmix.js      # рабочий пример другого источника (для сверки API Lampa)
@@ -49,6 +49,6 @@ MIT (плагин). Плагин не аффилирован с kinopub. Исп�
 
 ## Рабочая редакция 1.0.73-mx.2
 
-Эта отдельная редакция добавляет прямые файловые ресурсы для Infuse 8.4.7 и новее, учитывает разовый выбор плеера и сохраняет изображения эпизодов KinoPub. Копия автора по приведённому выше адресу остаётся исходной 1.0.73. Исправленный файл здесь подготовлен локально; на Apple TV воспроизведение не проверено.
+Эта отдельная редакция добавляет прямые файловые ресурсы для Infuse 8.4.7 и новее, учитывает разовый выбор плеера и сохраняет изображения эпизодов KinoPub. Исходный проект: https://github.com/mainsync-afk/lampa_kinopub. Исправленная версия опубликована из собственного ответвления `aomikh/lampa_kinopub`; на Apple TV воспроизведение не проверено.
 
-Порядок установки и отката: `INSTALL_LAMPA_MX.md`. Диагностика, ограничения и проверки: `HANDOFF_LAMPA_MX_KINOPUB.md`. Данные аккаунта и конфигурация Shadowrocket не изменяются. Проверки: `node --test tests/*.test.cjs` и `node smoke-test.js` из корня рабочей копии.
+Порядок установки и отката: [INSTALL_LAMPA_MX.md](https://github.com/aomikh/lampa_kinopub/blob/main/INSTALL_LAMPA_MX.md). Диагностика, ограничения и проверки: [HANDOFF_LAMPA_MX_KINOPUB.md](https://github.com/aomikh/lampa_kinopub/blob/main/HANDOFF_LAMPA_MX_KINOPUB.md). Данные аккаунта и конфигурация Shadowrocket не изменяются. Проверки: `node --test tests/*.test.cjs` и `node smoke-test.js` из корня рабочей копии.

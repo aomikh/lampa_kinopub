@@ -1,0 +1,19 @@
+{
+  "checked_at_utc": "2026-10-04T08:25:50.849833+00:00",
+  "repository": "https://github.com/aomikh/lampa_kinopub",
+  "branch": "main",
+  "pages_source": "/docs",
+  "code_commit": "37b41d94aa40dbcb3ec871718fc3ca2892e6711e",
+  "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
+  "status": 200,
+  "content_type": "application/javascript; charset=utf-8",
+  "bytes": 214114,
+  "version": "1.0.73-mx.2",
+  "sha256": "f96db51ad574f1aa1d648e996fe18e248b31fdd44b7ec885ba3a7b5c4394b0fa",
+  "local_match": true,
+  "pushed": true,
+  "published": true,
+  "loaded_on_apple_tv_confirmed": false,
+  "infuse_playback_confirmed": false,
+  "episode_artwork_on_device_confirmed": false
+}
