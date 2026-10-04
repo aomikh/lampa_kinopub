@@ -1,0 +1,77 @@
+Baseline: ce32c73, actual docs/kp.js from git. New regression tests; expected failures.
+✖ diagnostic checks all four ranges on the exact signed link without reading any browser body (9.148606ms)
+✖ one-off Infuse maximum is selected from direct files, not the HLS card label (9.846709ms)
+✖ a file-reference-only higher quality is not masked by the lower direct URL in the card (2.674696ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90.578168
+
+✖ failing tests:
+
+test at tests/diagnostic.test.cjs:23:1
+✖ diagnostic checks all four ranges on the exact signed link without reading any browser body (9.148606ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2 !== 5
+
+      at TestContext.<anonymous> (/tmp/kp-mx5-regression-rpsi3law/tests/diagnostic.test.cjs:32:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/playback.test.cjs:241:1
+✖ one-off Infuse maximum is selected from direct files, not the HLS card label (9.846709ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '/fixture-selected-1080.mp4'
+  - '/fixture-selected-2160.mp4'
+                       ^
+
+      at TestContext.<anonymous> (/tmp/kp-mx5-regression-rpsi3law/tests/playback.test.cjs:250:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/fixture-selected-1080.mp4',
+    expected: '/fixture-selected-2160.mp4',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/playback.test.cjs:258:1
+✖ a file-reference-only higher quality is not masked by the lower direct URL in the card (2.674696ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '/fixture-1080.mp4'
+  - '/fixture-2160.mp4'
+              ^
+
+      at TestContext.<anonymous> (/tmp/kp-mx5-regression-rpsi3law/tests/playback.test.cjs:265:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/fixture-1080.mp4',
+    expected: '/fixture-2160.mp4',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

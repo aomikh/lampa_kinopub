@@ -1,24 +1,26 @@
 {
-  "prepared_at_utc": "2026-10-04T10:20:00+00:00",
-  "version": "1.0.73-mx.5",
-  "baseline_commit": "17f6976d28f83d883f952fa48181594df2e24702",
-  "bytes": 226088,
-  "sha256": "7de04c4aa0dbc369ed4eb8accbee3b5980e8e5bf0d510276829d17c5f932443e",
-  "tests_passed": 50,
+  "prepared_at_utc": "2026-10-04T11:52:33.351144+00:00",
+  "version": "1.0.73-mx.6",
+  "baseline_commit": "ce32c73a7f7e9d0c1808b5bbff31ff4996554812",
+  "bytes": 236095,
+  "sha256": "50c91eb4d6f7fb514c44287a7b0b76491add9df6cbafbc3beb077319f4e95838",
+  "javascript_tests_passed": 64,
+  "python_http_tests_passed": 14,
   "smoke_checks_passed": 20,
-  "quality_regression_tests_failed_on_mx4": 4,
-  "ordinary_launch_quality_unchanged": true,
+  "new_regressions_failed_on_actual_mx5": 3,
+  "confirmed_fixes": [
+    "Infuse maximum inherited from automatic card quality label",
+    "manual diagnostic tested only beginning of resource"
+  ],
+  "authenticated_media_tested": false,
+  "range_failure_root_cause_confirmed": false,
   "speed_improvement_on_device_verified": false,
   "device_playback_tested": false,
-  "authenticated_media_tested": false,
-  "buffering_root_cause_confirmed": false,
+  "device_seek_tested": false,
+  "settings_changed": false,
+  "shadowrocket_changed": false,
   "own_remote_branches_before": [
     "main"
   ],
-  "local_branches_after": [
-    "main"
-  ],
-  "previously_deleted_published_files": [
-    "docs/releases/kp-1.0.73-mx.2.js"
-  ]
+  "reference_shadowrocket_main": "8461df540797d4672739962cb246928cad2624ff"
 }

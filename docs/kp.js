@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.5';
+  var PLUGIN_VERSION  = '1.0.73-mx.6';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -286,7 +286,8 @@
     // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
     try {
       lastInfuseAttempt = { url: play.url, at: Date.now(), quality: play._kpQuality,
-        prepareMs: play._kpPrepareMs };
+        prepareMs: play._kpPrepareMs,
+        handoffMs: play._kpLinkReadyAt == null ? null : Math.max(0, Date.now() - play._kpLinkReadyAt) };
       window.location.assign(url);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
         resource: resourceInfo(play.url), deliveryField: 'http', quality: play._kpQuality,
@@ -300,11 +301,56 @@
     }
   }
 
-  // Explicit diagnostic only: never delays playback. Fetch headers and abort
-  // each body immediately, including when the server ignores Range. Browser
-  // CORS failures cannot establish that the same resource fails in Infuse.
+  // Byte counts must not use numberValue's 32-bit episode/id limit.
+  function probeNumber(value) {
+    return /^\d+$/.test(String(value)) && Number(value) <= 9007199254740991 ? Number(value) : null;
+  }
+
+  function parseProbeRange(value) {
+    var match = /^bytes (?:(\d+)-(\d+)|\*)\/(\d+|\*)$/i.exec(value || '');
+    if (!match) return null;
+    var total = match[3] === '*' ? null : probeNumber(match[3]);
+    if (match[3] !== '*' && total === null) return null;
+    if (!match[1]) return total === null ? null : { total: total, unsatisfied: true };
+    var start = probeNumber(match[1]), end = probeNumber(match[2]);
+    if (start === null || end === null || end < start || (total !== null && end >= total)) return null;
+    return { start: start, end: end, total: total };
+  }
+
+  // "headers-match" is deliberately not a claim about received bytes/speed.
+  function probeRangeVerdict(result, request, size) {
+    if (result.status === 401 || result.status === 403) return 'authorization';
+    if (result.status === 200) return 'range-ignored';
+    var range = parseProbeRange(result.range);
+    if (result.status === 416) {
+      if (!range || !range.unsatisfied) return 'unknown-range';
+      if (size !== null && range.total !== size) return 'size-changed';
+      return range.total === 0 || (request.start != null && request.start >= range.total)
+        ? 'unsatisfiable' : 'rejected-range';
+    }
+    if (result.status !== 206) return 'http-error';
+    if (!result.range) return 'unknown-range'; // Missing OR CORS-hidden, never guess which.
+    if (!range || range.unsatisfied) return 'invalid-range';
+    if (size !== null && range.total !== null && size !== range.total) return 'size-changed';
+    var total = range.total === null ? size : range.total;
+    if (request.suffix && total === null) return 'unknown-range';
+    var start = request.suffix ? Math.max(0, total - request.suffix) : request.start;
+    var end = request.suffix || request.end == null ? (total === null ? null : total - 1) :
+      (total === null ? request.end : Math.min(request.end, total - 1));
+    if (range.start !== start || (end !== null && range.end > end)) return 'invalid-range';
+    if (result.length != null && probeNumber(result.length) !== range.end - range.start + 1) return 'invalid-range';
+    // RFC 9110 permits sending only a portion. Do not mislabel that as full
+    // coverage, or as proof that the server cannot seek.
+    return end === null || range.end < end ? 'headers-partial' : 'headers-match';
+  }
+
+  // Manual only: HEAD, start, middle, open-ended middle and suffix. At most
+  // five fetches, six seconds each, no retries. Do NOT read any browser body:
+  // stream chunk sizes are not controllable here. Abort even 200/error bodies.
+  // The separate CLI probe can read at most 1 KiB per validated range.
   function probeInfuseResource(url, complete) {
-    var stopped = false, controller = null, timer = null, results = [];
+    var stopped = false, controller = null, timer = null, results = [], size = null;
+    var queue = [{ method: 'HEAD' }, { method: 'GET', start: 0, end: 1023 }];
     function cancel() {
       stopped = true;
       clearTimeout(timer);
@@ -314,8 +360,11 @@
       complete([{ error: 'unsupported' }]);
       return cancel;
     }
-    function run(method) {
+    function run() {
       if (stopped) return;
+      var request = queue.shift(), method = request.method;
+      var requested = method === 'HEAD' ? null : 'bytes=' + (request.suffix ? '-' + request.suffix :
+        request.start + '-' + (request.end == null ? '' : request.end));
       var started = Date.now(), settled = false;
       var current = controller = new window.AbortController();
       function finish(result) {
@@ -324,34 +373,60 @@
         clearTimeout(timer);
         current.abort();
         result.method = method;
+        result.requested = requested;
         result.ms = Date.now() - started;
+        result.bytesRead = 0;
+        result.bodyChecked = false;
+        if (!result.error && method === 'GET') result.verdict = probeRangeVerdict(result, request, size);
         results.push(result);
-        if (method === 'HEAD') run('GET');
+        var range = parseProbeRange(result.range);
+        var encoded = result.encoding && result.encoding !== 'identity';
+        if (!encoded && method === 'HEAD' && result.status === 200) size = probeNumber(result.length);
+        if (!encoded && method === 'GET' && request.start === 0 && result.status === 206 &&
+            range && !range.unsatisfied && range.start === 0 && range.total !== null &&
+            (result.verdict === 'headers-match' || result.verdict === 'headers-partial')) size = range.total;
+        if (method === 'GET' && request.start === 0) {
+          // The screenshot offset is NOT reused for a different file.
+          if (size > 1 && !encoded && result.verdict !== 'size-changed') {
+            var middle = Math.floor(size / 2);
+            queue.push({ method: 'GET', start: middle, end: Math.min(size - 1, middle + 1023) });
+            queue.push({ method: 'GET', start: middle });
+          }
+          queue.push({ method: 'GET', suffix: 1024 });
+        }
+        // Auth/error-page responses and a changed representation need a new
+        // ordinary launch, not repeated requests to the same unusable link.
+        if (result.status === 401 || result.status === 403 || result.status === 404 || result.status === 410 ||
+            /^(text\/html|application\/(json|vnd\.apple\.mpegurl|x-mpegurl))$/i.test(result.type || '') ||
+            result.verdict === 'size-changed') queue = [];
+        if (queue.length) run();
         else { stopped = true; complete(results); }
       }
       timer = setTimeout(function () { finish({ error: 'timeout' }); }, 6000);
       var options = { method: method, credentials: 'omit', cache: 'no-store',
         redirect: 'follow', signal: current.signal };
-      if (method === 'GET') options.headers = { Range: 'bytes=0-1023' };
+      if (method === 'GET') options.headers = { Range: requested };
       try {
         window.fetch(url, options).then(function (response) {
           // Do not read a response body or log exception/response text.
           if (response.body && response.body.cancel) response.body.cancel().catch(function () {});
           if (stopped || settled) return;
           function header(name, pattern) {
-            var value = response.headers.get(name) || '';
-            return pattern.test(value) ? value : null;
+            var value = response.headers.get(name);
+            return !value ? null : pattern.test(value) ? value : 'invalid';
           }
+          var type = (response.headers.get('Content-Type') || '').split(';')[0].trim();
           finish({ status: response.status, host: resourceInfo(response.url).host,
             redirected: !!response.redirected,
-            type: header('Content-Type', /^[\w.+-]+\/[\w.+-]+(?:; charset=[\w-]+)?$/i),
+            type: /^[\w.+-]+\/[\w.+-]+$/.test(type) ? type : null,
             length: header('Content-Length', /^\d+$/),
-            range: header('Content-Range', /^bytes \d+-\d+\/(?:\d+|\*)$/),
-            acceptRanges: header('Accept-Ranges', /^(bytes|none)$/) });
+            range: header('Content-Range', /^bytes (?:\d+-\d+|\*)\/(?:\d+|\*)$/i),
+            acceptRanges: header('Accept-Ranges', /^(bytes|none)$/i),
+            encoding: header('Content-Encoding', /^[a-z0-9-]{1,32}$/i) });
         }, function () { finish({ error: 'network-or-cors' }); });
       } catch (e) { finish({ error: 'unsupported' }); }
     }
-    run('HEAD');
+    run();
     return cancel;
   }
 
@@ -363,20 +438,38 @@
     var summary = 'KinoPub ' + PLUGIN_VERSION + ' / Lampa ' + (Lampa.Manifest.app_digital || '?') +
       '\n' + resourceInfo(attempt.url).host + ' / ' + (attempt.quality || '?') + 'p' +
       '\n' + Lampa.Lang.translate('kp_infuse_prepare') + ': ' + (attempt.prepareMs == null ? '?' : attempt.prepareMs) + ' ms' +
+      '\n' + Lampa.Lang.translate('kp_infuse_dispatch_time') + ': ' + (attempt.handoffMs == null ? '?' : attempt.handoffMs) + ' ms' +
       '\n' + Lampa.Lang.translate('kp_infuse_link_age') + ': ' + Math.floor((Date.now() - attempt.at) / 1000) + ' s';
     body.text(summary + '\n' + Lampa.Lang.translate('kp_infuse_check_running'));
     var stop = function () {};
     Lampa.Modal.open({ title: Lampa.Lang.translate('kp_infuse_check'), html: body, size: 'medium',
       onBack: function () { stop(); Lampa.Modal.close(); Lampa.Controller.toggle(enabled); } });
     stop = probeInfuseResource(attempt.url, function (results) {
-      var rows = results.map(function (r) {
-        if (r.error) return (r.method || '') + ': ' + Lampa.Lang.translate('kp_infuse_probe_' + r.error);
-        return r.method + ': HTTP ' + r.status + ' / ' + r.ms + ' ms\n' +
+      Lampa.Modal.close();
+      var limits = Lampa.Lang.translate('kp_infuse_check_limits');
+      var entries = results.map(function (r) {
+        var title = (r.method || '') + (r.requested ? ' ' + r.requested : '') + ': ' +
+          (r.error ? Lampa.Lang.translate('kp_infuse_probe_' + r.error) : 'HTTP ' + r.status);
+        var verdict = r.verdict ? Lampa.Lang.translate('kp_infuse_range_' + r.verdict) : '';
+        return { title: title, subtitle: verdict, detail: title + '\n' + verdict + '\n' +
           (r.host || '?') + (r.redirected ? ' (redirect)' : '') + '\n' +
-          'Type: ' + (r.type || '?') + ' / Length: ' + (r.length || '?') + '\n' +
-          'Range: ' + (r.range || '?') + ' / Accept-Ranges: ' + (r.acceptRanges || '?');
+          'Headers: ' + (r.ms == null ? '?' : r.ms) + ' ms / Body: 0 bytes\n' +
+          'Content-Type: ' + (r.type || '?') + '\nContent-Length: ' + (r.length || '?') +
+          '\nContent-Range: ' + (r.range || '?') + '\nAccept-Ranges: ' + (r.acceptRanges || '?') +
+          '\nContent-Encoding: ' + (r.encoding || '?') };
       });
-      body.text(summary + '\n\n' + rows.join('\n\n') + '\n\n' + Lampa.Lang.translate('kp_infuse_check_limits'));
+      entries.unshift({ title: Lampa.Lang.translate('kp_infuse_report'), subtitle: 'KinoPub ' + PLUGIN_VERSION,
+        detail: summary + '\n\n' + entries.map(function (e) { return e.title + '\n' + e.subtitle; }).join('\n') });
+      function report() {
+        Lampa.Select.show({ title: Lampa.Lang.translate('kp_infuse_check'), items: entries,
+          onBack: function () { Lampa.Controller.toggle(enabled); },
+          onSelect: function (entry) {
+            Lampa.Modal.open({ title: Lampa.Lang.translate('kp_infuse_check'), size: 'large',
+              html: $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' }).text(entry.detail + '\n\n' + limits),
+              onBack: function () { Lampa.Modal.close(); report(); } });
+          } });
+      }
+      report();
     });
   }
 
@@ -2764,6 +2857,7 @@
           if (generation !== infuseGeneration || !infuseLaunching) return;
           if (!infuseFileUrl(url)) { fail('file resolver returned no direct resource'); return; }
           play.url = url;
+          play._kpLinkReadyAt = Date.now();
           play._kpPrepareMs = Date.now() - started;
           infuseLaunching = false;
           clearTimeout(infuseTimer);
@@ -3045,6 +3139,7 @@
             // clean player titles like "s1e3 Долгий день уходит в ночь"
             ep_title:     ep.title || '',
             quality:      stream ? (stream.currentQuality + 'p ') : '',
+            _kpListedQuality: stream ? (stream.currentQuality + 'p ') : '',
             translation:  1,
             voice_name:   filterItems.voice[choice.voice] || '',
             // info row stays for rating/year (set in draw()). voices is built
@@ -3060,6 +3155,7 @@
           kp:          { kind: 'movie', files: extract.movie.files, audios: extract.movie.audios, subtitles: extract.movie.subtitles },
           title:       (object.movie && (object.movie.title || object.movie.name)) || '',
           quality:     stream2 ? (stream2.currentQuality + 'p ') : '',
+          _kpListedQuality: stream2 ? (stream2.currentQuality + 'p ') : '',
           translation: 1,
           voice_name:  filterItems.voice[choice.voice] || '',
           info:        '',
@@ -3104,7 +3200,12 @@
 
     function toPlayElement(element, actualPlayer, targetQuality) {
       actualPlayer = detectActualPlayer(actualPlayer);
-      var stream = streamForElement(element, targetQuality == null ? element.quality : targetQuality, actualPlayer);
+      // A label generated for HLS (or URL-only metadata) is not an explicit
+      // Infuse quality choice. Resolve its maximum from actual direct files.
+      // Keep explicit context choices and legacy changed quality fields exact.
+      var target = targetQuality;
+      if (target == null && !(actualPlayer === 'infuse' && element.quality === element._kpListedQuality)) target = element.quality;
+      var stream = streamForElement(element, target, actualPlayer);
       if (!stream) return null;
 
       // Title formatting:
@@ -4613,15 +4714,27 @@
       kp_infuse_check_empty: { ru: 'Сначала запустите фильм через Infuse в этой сессии Lampa.',
         en: 'First launch a movie through Infuse in this Lampa session.', ua: 'Спочатку запустіть фільм через Infuse.' },
       kp_infuse_prepare: { ru: 'Подготовка ссылки', en: 'Link preparation', ua: 'Підготовка посилання' },
+      kp_infuse_dispatch_time: { ru: 'Готовая ссылка → передача Infuse', en: 'Link ready → Infuse handoff', ua: 'Посилання готове → передача Infuse' },
       kp_infuse_link_age: { ru: 'После передачи ссылки', en: 'Time since handoff', ua: 'Після передачі посилання' },
-      kp_infuse_check_running: { ru: 'Проверка сервера (до 12 секунд)…', en: 'Checking server (up to 12 seconds)…', ua: 'Перевірка сервера…' },
+      kp_infuse_check_running: { ru: 'Проверка диапазонов (до 30 секунд)…', en: 'Checking ranges (up to 30 seconds)…', ua: 'Перевірка діапазонів (до 30 секунд)…' },
+      kp_infuse_report: { ru: 'Сводка проверки', en: 'Probe summary', ua: 'Підсумок перевірки' },
+      'kp_infuse_range_headers-match': { ru: 'Заголовки диапазона совпали; тело не проверено', en: 'Range headers match; body untested', ua: 'Заголовки збігаються; тіло не перевірене' },
+      'kp_infuse_range_headers-partial': { ru: 'Заголовки части диапазона; покрытие не подтверждено', en: 'Partial range headers; coverage unconfirmed', ua: 'Заголовки частини діапазону' },
+      'kp_infuse_range_unknown-range': { ru: 'Недостаточно заголовков: отсутствие или CORS', en: 'Insufficient headers: absent or CORS-hidden', ua: 'Недостатньо заголовків: відсутні або CORS' },
+      'kp_infuse_range_range-ignored': { ru: 'Получен полный ответ 200 вместо диапазона', en: 'Full 200 response instead of a range', ua: 'Повна відповідь 200 замість діапазону' },
+      'kp_infuse_range_invalid-range': { ru: 'Диапазон или длина не соответствуют запросу', en: 'Range or length does not match the request', ua: 'Діапазон або довжина не відповідає запиту' },
+      'kp_infuse_range_size-changed': { ru: 'Размер изменился: прекратите проверку этой ссылки', en: 'Size changed: stop testing this link', ua: 'Розмір змінився: перевірку зупинено' },
+      'kp_infuse_range_unsatisfiable': { ru: '416: диапазон вне текущего размера', en: '416: range outside current size', ua: '416: діапазон поза поточним розміром' },
+      'kp_infuse_range_rejected-range': { ru: '416: отказ для допустимого диапазона', en: '416: satisfiable range rejected', ua: '416: відмова для допустимого діапазону' },
+      'kp_infuse_range_http-error': { ru: 'Ошибка HTTP, диапазон не подтверждён', en: 'HTTP error; range unconfirmed', ua: 'Помилка HTTP; діапазон не підтверджено' },
+      'kp_infuse_range_authorization': { ru: 'Доступ отклонён; истечение ссылки не доказано', en: 'Access denied; expiry not established', ua: 'Доступ відхилено; строк дії не встановлено' },
       kp_infuse_probe_timeout: { ru: 'нет ответа за 6 секунд из Lampa', en: 'no response in 6 seconds from Lampa', ua: 'немає відповіді за 6 секунд із Lampa' },
       'kp_infuse_probe_network-or-cors': { ru: 'сеть или запрет CORS в Lampa; результат для Infuse неизвестен',
         en: 'network or Lampa CORS restriction; Infuse result unknown', ua: 'мережа або CORS у Lampa; результат для Infuse невідомий' },
       kp_infuse_probe_unsupported: { ru: 'оболочка не поддерживает эту проверку', en: 'this shell cannot run the probe', ua: 'оболонка не підтримує перевірку' },
-      kp_infuse_check_limits: { ru: 'Проверены только заголовки из Lampa. ? — заголовок отсутствует или скрыт CORS. Скорость, весь фильм и маршрут Infuse не проверены. Ссылки и токены скрыты.',
-        en: 'Headers checked from Lampa only. ? means missing or CORS-hidden. Speed, full movie and Infuse route are untested. URLs and tokens are hidden.',
-        ua: 'Перевірено лише заголовки з Lampa. Швидкість, весь фільм і маршрут Infuse не перевірені. Посилання й токени приховані.' },
+      kp_infuse_check_limits: { ru: 'Только заголовки из Lampa; тело не читается. ? — заголовок отсутствует или скрыт CORS. Середина вычислена по размеру этого файла, не по старой ошибке. Без размера — только начало и конец. Промежуточные редиректы браузер скрывает. Скорость и маршрут Infuse не проверены. Ссылки и токены скрыты.',
+        en: 'Lampa headers only; body unread. ? means absent or CORS-hidden. Middle is based on this file size, not an earlier error. Without size: start and suffix only. Intermediate redirects are hidden by the browser. Speed and Infuse route untested. URLs and tokens hidden.',
+        ua: 'Лише заголовки з Lampa; тіло не читається. ? — відсутнє або приховане CORS. Середина за розміром цього файлу; без розміру — початок і кінець. Редиректи приховані браузером. Швидкість і маршрут Infuse не перевірені.' },
       kp_infuse_no_file: {
         ru: 'Не удалось получить прямой файл KinoPub в выбранном качестве. Повторите запуск или выберите доступное качество.',
         en: 'No fresh direct KinoPub file at the selected quality. Retry or choose an available quality.',

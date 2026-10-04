@@ -238,6 +238,33 @@ test('loaded movie with a file reference needs only one request before Infuse di
   assert.equal(rt.internal.length,0);
 });
 
+test('one-off Infuse maximum is selected from direct files, not the HLS card label', () => {
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'inner',kp_max_quality:'2160'}});
+  const {src,view,item}=source(rt);
+  item.videos[0].files=[{quality:'2160p',file:'/fixture-selected-2160.mp4'},
+    {quality:'1080p',file:'/fixture-selected-1080.mp4',urls:{hls2:'https://video.example/1080.m3u8'}}];
+  src.find(22);rt.requests.at(-1).ok({item});
+  assert.equal(view.items[0].quality.trim(),'1080p'); // Label prepared for saved internal player.
+  view.items[0].timeline={time:421};const before=rt.requests.length;
+  view.options.onEnter(view.items[0],{}, {player:'infuse'});
+  assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/fixture-selected-2160.mp4');
+  rt.requests.at(-1).ok({url:signed});
+  const params=new URL(rt.launches[0]).searchParams;
+  assert.equal(params.get('url'),signed);assert.equal(params.get('position'),'421');
+  assert.equal(rt.requests.length-before,1);assert.equal(rt.internal.length,0);
+  assert.equal(rt.storage.kp_max_quality,'2160');assert.equal(rt.storage.player,'inner');
+});
+
+test('a file-reference-only higher quality is not masked by the lower direct URL in the card',()=>{
+  const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse',kp_max_quality:'2160'}});
+  const {src,view,item}=source(rt);
+  item.videos[0].files=[{quality:'2160p',file:'/fixture-2160.mp4'},
+    {quality:'1080p',file:'/fixture-1080.mp4',urls:{http:signed}}];
+  src.find(22);rt.requests.at(-1).ok({item});
+  view.options.onEnter(view.items[0]);
+  assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/fixture-2160.mp4');
+});
+
 test('one-off Infuse quality resolves only that file; next ordinary launch keeps the original quality', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'inner'}});
   const {src,view,item}=movieWithFile(rt);

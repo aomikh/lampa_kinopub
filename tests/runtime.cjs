@@ -74,7 +74,8 @@ function runtime(options = {}) {
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
   const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
-    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic'];
+    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic',
+    'parseProbeRange','probeRangeVerdict'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
   return {api: sandbox.window.testAPI, storage, requests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,

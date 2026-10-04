@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KinoPub 1.0.73-mx.5 для Lampa MX</title>
+<title>KinoPub 1.0.73-mx.6 для Lampa MX</title>
 <style>
   :root { color-scheme: dark; }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -24,8 +24,8 @@
 </head>
 <body>
 
-<h1>KinoPub 1.0.73-mx.5 для Lampa MX</h1>
-<p>Собственное ответвление проекта <a href="https://github.com/mainsync-afk/lampa_kinopub">mainsync-afk</a>. Единственная ветка — main, единственный опубликованный плагин — kp.js. В mx.5 добавлен разовый выбор качества перед запуском Infuse. Он позволяет проверить 720p вместо 1080p без изменения общих настроек. Автоматические проверки пройдены; ускорение на Apple TV и устранение обрыва не подтверждены.</p>
+<h1>KinoPub 1.0.73-mx.6 для Lampa MX</h1>
+<p>Собственное ответвление проекта <a href="https://github.com/mainsync-afk/lampa_kinopub">mainsync-afk</a>. Единственная ветка — main, единственный опубликованный плагин — kp.js. Исправлен выбор максимального прямого файлового варианта для Infuse в пределах заданного качества. Ручная диагностика проверяет начало, середину и конец файла. Ускорение на Apple TV и устранение ошибки Range пока не подтверждены.</p>
 
 <p>
   Плагин-источник видео <strong>kinopub</strong> для приложения
@@ -36,16 +36,16 @@
 
 <div class="note">
   Прямая ссылка для добавления в Lampa: <br>
-  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.5</code>
+  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.6</code>
 </div>
 
 <h2>Установка</h2>
 <ol>
   <li>В Lampa откройте <em>Настройки → Расширения</em>.</li>
   <li>Отключите старую копию KinoPub и её дубликаты, затем нажмите <em>Добавить плагин</em>.</li>
-  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.5</code></li>
+  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.6</code></li>
   <li>Сохраните, полностью закройте Lampa MX через переключатель приложений Apple TV и откройте снова.</li>
-  <li>Для сравнения удерживайте кнопку подтверждения на строке фильма и выберите <em>Infuse: выбрать качество → 720p</em>, если вариант доступен. Повторите тот же фильм и место прежнего обрыва, затем сравните с 1080p. Обычный запуск сохраняет прежнее качество.</li>
+  <li>Запустите проблемный фильм через Infuse. После ошибки вернитесь в ту же сессию Lampa MX → <em>Настройки → KinoPub → Диагностика Infuse → Сводка проверки</em>. Отдельный результат GET открывает подробности. Проверка ручная, до 30 секунд, только заголовки.</li>
 </ol>
 
 <p><a href="https://github.com/aomikh/lampa_kinopub/blob/main/INSTALL_LAMPA_MX.md">Подробная установка, проверка и откат</a>. Существующая авторизация сохраняется; повторный вход нужен только если аккаунт ещё не подключён.</p>

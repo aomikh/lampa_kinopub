@@ -1,0 +1,45 @@
+{
+  "checked_at_utc": "2026-10-04T11:43:33.717210+00:00",
+  "per_get_read_limit": 1024,
+  "wall_clock_limit_seconds": 20,
+  "device_route_tested": false,
+  "infuse_tested": false,
+  "demo": true,
+  "result": {
+    "origin": {
+      "scheme": "https",
+      "host": "files.firecore.com"
+    },
+    "checks": [
+      {
+        "method": "HEAD",
+        "requested": null,
+        "redirects": [],
+        "bytes_read": 0,
+        "body_checked": false,
+        "error": "network-or-invalid-response",
+        "elapsed_ms": 4008
+      },
+      {
+        "method": "GET",
+        "requested": "bytes=0-1023",
+        "redirects": [],
+        "bytes_read": 0,
+        "body_checked": false,
+        "error": "network-or-invalid-response",
+        "elapsed_ms": 4005
+      },
+      {
+        "method": "GET",
+        "requested": "bytes=-1024",
+        "redirects": [],
+        "bytes_read": 0,
+        "body_checked": false,
+        "error": "network-or-invalid-response",
+        "elapsed_ms": 4006
+      }
+    ],
+    "offset_note": "size unavailable; no guessed nonzero offset",
+    "bytes_read_total": 0
+  }
+}
