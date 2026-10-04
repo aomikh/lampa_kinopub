@@ -5,15 +5,26 @@ const vm = require('node:vm');
 
 function runtime(options = {}) {
   const storage = {kp_max_quality: '1080', kp_format: 'auto', player: 'inner', ...options.storage};
-  const requests = [], launches = [], internal = [], notices = [], logs = [];
+  const requests = [], launches = [], internal = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [];
   const timers = new Map();
   let timerId = 0;
   function setTimer(fn) { timers.set(++timerId, fn); return timerId; }
   function jq() {
-    return {0: {}, length: 1, find: jq, render: jq, on() {return this;}, append() {return this;},
-      after() {return this;}, remove() {}, addClass() {return this;}, removeClass() {return this;},
-      toggleClass() {return this;}, hasClass() {return false;}, text() {return this;}, html() {return this;},
-      first() {return this;}, trigger() {return this;}, data() {return this;}, css() {return this;}};
+    const children={}, events={}, data={}, classes=new Set();
+    return {0: {src:'',removeAttribute() {this.src='';}}, length: 1, children, events, classes, content: [],
+      find(selector) {return children[selector] || (children[selector]=jq());}, render: jq,
+      on(event, fn) {events[event]=fn;return this;}, append(value) {this.content.push(value);return this;},
+      after() {return this;}, remove() {this.removed=true;}, addClass(k) {classes.add(k);return this;},
+      removeClass(k) {classes.delete(k);return this;}, toggleClass(k,v) {if(v) classes.add(k);else classes.delete(k);return this;},
+      hasClass(k) {return classes.has(k);}, text(v) {this.value=v;return this;}, html(v) {this.value=v;return this;},
+      first() {return this;}, trigger(event) {if(events[event]) events[event]();return this;},
+      data(k,v) {if(arguments.length>1) {data[k]=v;return this;} return data[k];}, css() {return this;}};
+  }
+  class FakeImage {
+    constructor() {imageRequests.push(this);}
+    set src(value) {this._src=value;}
+    get src() {return this._src;}
+    removeAttribute() {this._src='';}
   }
   function network() {
     this.owned = [];
@@ -27,6 +38,8 @@ function runtime(options = {}) {
   function moduleStub() {
     this.render = this.body = jq;
     for (const k of ['append','update','clear','destroy','minus','appendFiles','appendHead','set','chosen','show','addButtonBack']) this[k] = () => {};
+    this.append = row => scrolled.push(row);
+    this.clear = () => scrolled.splice(0);
   }
   const Lampa = {
     Manifest: {app_digital: 200},
@@ -41,22 +54,28 @@ function runtime(options = {}) {
     Noty: {show: text => notices.push(text)},
     Player: {play: data => internal.push(data), playlist() {}, runas() {}},
     Scroll: moduleStub, Explorer: moduleStub, Filter: moduleStub,
-    Template: {get: jq}, TMDB: {key: () => 'public-test-key', api: u => 'https://tmdb.example/' + u, image: u => 'https://image.example/' + u},
+    Template: {get(name, data, text) {
+      if(text) return '<rate>'+data.rate+'</rate>';
+      const row=jq(); row.template=name; row.element=data;
+      if(name==='online_prestige_full') rows.push(row);
+      return row;
+    }}, TMDB: {key: () => 'public-test-key', api: u => 'https://tmdb.example/' + u, image: u => 'https://image.example/' + u},
     Timeline: {view: () => ({time: 37,percent: 0}), render: jq, update() {}},
     Controller: {enable() {}, enabled: () => ({name:'content'}), toggle() {}},
-    Activity: {active: () => ({})}, Favorite: {add() {}}, Helper: {show() {}}
+    Activity: {active: () => ({})}, Favorite: {add() {}}, Helper: {show() {}}, Select: {show: menu => menus.push(menu)}
   };
-  const sandbox = {URL, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
+  const sandbox = {URL, Image: FakeImage, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
     navigator: {userAgent: 'test'}, $, Lampa, document: {},
     setTimeout: setTimer, clearTimeout: id => timers.delete(id), setInterval: setTimer, clearInterval: id => timers.delete(id),
-    window: {Lampa, addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
+    window: {Lampa,innerWidth:1920, addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
   function $(arg) {return jq(arg);}
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
   const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
-    'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo'];
+    'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
+    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
-  return {api: sandbox.window.testAPI, storage, requests, launches, internal, notices, logs, timers, Lampa,
+  return {api: sandbox.window.testAPI, storage, requests, launches, internal, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus,
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }
 module.exports = {runtime};

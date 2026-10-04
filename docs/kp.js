@@ -23,7 +23,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.1';
+  var PLUGIN_VERSION  = '1.0.73-mx.2';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -146,6 +146,92 @@
     if (!/^\d+$/.test(text)) return null;
     var n = Number(text);
     return isFinite(n) && n >= 0 && n <= 2147483647 ? n : null;
+  }
+
+  function thumbnailUrl(value) {
+    // String is confirmed by kinoapi.com and the bundled Kodi fixtures.
+    // An explicit {url: string} is accepted defensively; it is NOT claimed
+    // to be the live shape of the user's unavailable KinoPub response.
+    if (value && typeof value === 'object' && !Array.isArray(value)) value = value.url;
+    if (typeof value !== 'string') return null;
+    value = value.trim();
+    if (/^\/media\/thumbnail\/[^\s]+$/i.test(value)) value = 'https://kino.pub' + value;
+    return mediaUrl(value);
+  }
+
+  function tmdbStillUrl(path) {
+    if (typeof path !== 'string' || !/^\/(?!\/)[^\s]+$/.test(path) || /^\/(null|undefined)$/i.test(path)) return null;
+    return mediaUrl(Lampa.TMDB.image('t/p/w300' + path));
+  }
+
+  function episodeImages(episode, thumb) {
+    var urls = [tmdbStillUrl(episode && episode.still_path), thumbnailUrl(thumb)];
+    return urls.filter(function (url, i) { return !!url && urls.indexOf(url) === i; });
+  }
+
+  function tmdbSeriesId(movie, source) {
+    var explicit = numberValue(movie && movie.tmdb_id);
+    if (explicit) return explicit;
+    if (!movie || (movie.source && movie.source !== 'tmdb') || (source && source !== 'tmdb')) return null;
+    return movie.name && (movie.original_name || movie.first_air_date || movie.media_type === 'tv')
+      ? numberValue(movie.id) : null;
+  }
+
+  function sameSeries(item, movie) {
+    if (!item || !movie) return false;
+    var imdb = movie.imdb_id || movie.external_ids && movie.external_ids.imdb_id;
+    if (imdb && item.imdb) return String(imdb).replace(/^tt/, '') === String(item.imdb).replace(/^tt/, '');
+    var titles = splitKpTitle(item.title);
+    var matches = (movie.original_name && normalize(movie.original_name) === normalize(titles.orig)) ||
+      (movie.name && normalize(movie.name) === normalize(titles.rus));
+    var year = Number(String(movie.first_air_date || '').slice(0, 4));
+    return !!matches && (!year || !item.year || Math.abs(year - Number(item.year)) <= 1);
+  }
+
+  function findEpisode(episodes, season, episode) {
+    season = numberValue(season);
+    episode = numberValue(episode);
+    if (season === null || episode === null) return null;
+    return (episodes || []).find(function (e) {
+      return numberValue(e.episode_number) === episode &&
+        (e.season_number == null || numberValue(e.season_number) === season);
+    }) || null;
+  }
+
+  // Two candidates, one attempt each, five seconds each. Detached Image
+  // objects keep late events from an old request off the current DOM node.
+  function loadImageCandidates(target, candidates, complete, isCurrent) {
+    var stopped = false, active = null, timer = null, index = 0;
+    function current() { return !stopped && (!isCurrent || isCurrent()); }
+    function cleanup() {
+      clearTimeout(timer);
+      timer = null;
+      if (active) {
+        active.onload = active.onerror = null;
+        if (active.removeAttribute) active.removeAttribute('src');
+        active = null;
+      }
+    }
+    function next() {
+      cleanup();
+      if (!current()) return;
+      if (index >= Math.min(2, candidates.length)) { complete(false); return; }
+      var url = candidates[index++];
+      var request = active = new Image();
+      request.onload = function () {
+        if (!current() || active !== request) return;
+        clearTimeout(timer); timer = null;
+        request.onload = request.onerror = null;
+        active = null;
+        target.src = url;
+        complete(true);
+      };
+      request.onerror = function () { if (current() && active === request) next(); };
+      timer = setTimeout(function () { if (current() && active === request) next(); }, 5000);
+      request.src = url;
+    }
+    next();
+    return function () { stopped = true; cleanup(); };
   }
 
   // Infuse 8.4.7+: repeated url/position/filename/sub groups, once-encoded.
@@ -2330,6 +2416,7 @@
     var choice   = { season: 0, voice: 0, voice_name: '' };
     var filterItems = {};
     var waitSimilars = false;
+    var refreshHook = null;
 
     if (!KP.hasToken()) {
       Logger.info('source', 'no token, opening auth modal');
@@ -2511,6 +2598,8 @@
 
     this.destroy = function () {
       cancelInfuseLaunch();
+      if (window._kpRefreshFilterAndChips === refreshHook) window._kpRefreshFilterAndChips = null;
+      refreshHook = null;
       Logger.debug('source', 'destroy');
       network.clear();
       raw = null;
@@ -2661,15 +2750,19 @@
 
       if (hasSeasons) {
         extract.type = 'serial';
-        extract.seasons = (item.seasons || []).map(function (s) {
+        extract.seasons = (item.seasons || []).map(function (s, seasonIndex) {
+          var seasonNumber = numberValue(s.number);
+          if (seasonNumber === null) seasonNumber = seasonIndex + 1;
           return {
-            number:   s.number,
+            number:   seasonNumber,
             episodes: (s.episodes || []).map(function (ep, idx) {
+              var episodeNumber = numberValue(ep.number);
+              if (episodeNumber === null) episodeNumber = idx + 1;
               return {
-                id:        ep.id || (s.number + '_' + (ep.number || idx + 1)),
-                number:    ep.number || idx + 1,
+                id:        ep.id || (seasonNumber + '_' + episodeNumber),
+                number:    episodeNumber,
                 title:     ep.title || '',
-                thumb:     ep.thumbnail,
+                thumb:     ep.thumbnail == null ? ep.thumb : ep.thumbnail,
                 files:     parseFiles(ep.files),
                 audios:    ep.audios || [],
                 subtitles: ep.subtitles || []
@@ -2767,7 +2860,7 @@
       // the filter sidebar (and re-render episode chips) after an in-player
       // voice switch. Without this, the sidebar shows stale "Озвучка: ..."
       // because choice.voice_key was mutated externally by buildVoiceSwapCallback.
-      window._kpRefreshFilterAndChips = function () {
+      refreshHook = window._kpRefreshFilterAndChips = function () {
         try { buildFilter(); } catch (e) { Logger.warn('voice', 'refresh buildFilter failed', String(e)); }
         try { append(filtered()); } catch (e) { Logger.warn('voice', 'refresh append failed', String(e)); }
         try { setTimeout(refreshAllKpVoiceChips, 50); } catch (e) {}
@@ -2787,6 +2880,8 @@
             kp:           { kind: 'episode', files: ep.files, audios: ep.audios, subtitles: ep.subtitles },
             episode:      ep.number,
             season:       season.number,
+            thumb:        ep.thumb,
+            tmdb_id:      sameSeries(raw, object.movie) ? tmdbSeriesId(object.movie, object.source) : null,
             // display title for the in-source episode list (filmix-style)
             title:        Lampa.Lang.translate('torrent_serial_episode') + ' ' + ep.number + (ep.title ? ' - ' + ep.title : ''),
             // raw episode name from kinopub — used by toPlayElement to build
@@ -3248,6 +3343,11 @@
     var initialized;
     var last;
     var images = [];
+    var imageJobs = [];
+    var seasonJobs = [];
+    var seasonCache = {};
+    var renderGeneration = 0;
+    var closed = false;
     var selected_id;
     var extended;
 
@@ -3453,7 +3553,14 @@
     };
 
     this.clearImages = function () {
-      images.forEach(function (img) { img.onerror = function () {}; img.onload = function () {}; img.src = ''; });
+      renderGeneration++;
+      imageJobs.splice(0).forEach(function (cancel) { cancel(); });
+      seasonJobs.splice(0).forEach(function (cancel) { cancel(); });
+      images.forEach(function (img) {
+        img.onerror = img.onload = null;
+        if (img.removeAttribute) img.removeAttribute('src');
+        else img.src = '';
+      });
       images = [];
     };
 
@@ -3518,19 +3625,36 @@
       } catch (e) {}
     };
 
-    this.getEpisodes = function (season, call) {
-      var episodes = [];
-      if (typeof object.movie.id === 'number' && object.movie.name) {
-        var url = 'tv/' + object.movie.id + '/season/' + season +
+    this.getEpisodes = function (season, call, tmdbId) {
+      season = numberValue(season);
+      tmdbId = numberValue(tmdbId);
+      if (tmdbId && season !== null && !closed) {
+        var lang = Lampa.Storage.get('language', 'ru');
+        var cacheKey = tmdbId + '|' + season + '|' + lang;
+        var cached = seasonCache[cacheKey];
+        if (cached && Date.now() - cached.at < 300000) { call(cached.episodes); return; }
+        var finished = false;
+        var timer = setTimeout(function () { done([]); }, 10000);
+        function done(episodes) {
+          if (finished || closed) return;
+          finished = true;
+          clearTimeout(timer);
+          call(episodes);
+        }
+        seasonJobs.push(function () { finished = true; clearTimeout(timer); });
+        var url = 'tv/' + tmdbId + '/season/' + season +
                   '?api_key=' + Lampa.TMDB.key() +
-                  '&language=' + Lampa.Storage.get('language', 'ru');
+                  '&language=' + lang;
         var baseurl = Lampa.TMDB.api(url);
         network.timeout(10000);
         network['native'](baseurl, function (data) {
-          episodes = data.episodes || [];
-          call(episodes);
-        }, function () { call(episodes); });
-      } else call(episodes);
+          if (finished || closed) return;
+          if (!data || !Array.isArray(data.episodes) ||
+              (data.season_number != null && numberValue(data.season_number) !== season)) { done([]); return; }
+          seasonCache[cacheKey] = { at: Date.now(), episodes: data.episodes };
+          done(data.episodes);
+        }, function () { done([]); });
+      } else call([]);
     };
 
     this.append = function (item) {
@@ -3553,7 +3677,11 @@
       params = params || {};
       if (!items.length) return this.empty();
 
-      this.getEpisodes(items[0].season, function (episodes) {
+      if (closed) return;
+      var generation = ++renderGeneration;
+      var rows = [];
+      var episodes = [];
+      function current() { return !closed && generation === renderGeneration; }
         var viewed = Lampa.Storage.cache('online_view', 5000, []);
         var serial = object.movie.name ? true : false;
         var choice = self.getChoice();
@@ -3567,7 +3695,7 @@
 
         items.forEach(function (element, index) {
           var episode = serial && episodes.length && !params.similars
-            ? episodes.find(function (e) { return e.episode_number === element.episode; })
+            ? findEpisode(episodes, element.season, element.episode)
             : false;
           var episode_num  = element.episode || index + 1;
           var episode_last = choice.episodes_view[element.season];
@@ -3638,21 +3766,27 @@
             pctByIdx[index]  = (element.timeline && element.timeline.percent) || 0;
           }
 
-          if (serial && !episode) {
-            image.append('<div class="online-prestige__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
-            loader.remove();
-          } else {
-            var img = html.find('img')[0];
-            if (img) {
-              img.onerror = function () { img.src = './img/img_broken.svg'; };
-              img.onload  = function () {
-                image.addClass('online-prestige__img--loaded');
+          var img = html.find('img')[0];
+          if (img) {
+            images.push(img);
+            var cancelImage = function () {};
+            function updateImage(metadata) {
+              cancelImage();
+              var candidates = serial ? episodeImages(metadata, element.thumb) :
+                [tmdbStillUrl(object.movie.backdrop_path)].filter(Boolean);
+              image.removeClass('online-prestige__img--loaded');
+              image.find('.online-prestige__episode-number').remove();
+              cancelImage = loadImageCandidates(img, candidates, function (ok) {
+                if (!current()) return;
+                image.toggleClass('online-prestige__img--loaded', ok);
                 loader.remove();
-                if (serial) image.append('<div class="online-prestige__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
-              };
-              img.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
-              images.push(img);
+                if (!ok && serial) image.append('<div class="online-prestige__episode-number">' +
+                  ('0' + episode_num).slice(-2) + '</div>');
+              }, current);
+              imageJobs.push(cancelImage);
             }
+            updateImage(episode);
+            rows.push({ element: element, html: html, updateImage: updateImage });
           }
 
           html.find('.online-prestige__timeline').append(Lampa.Timeline.render(element.timeline));
@@ -3786,7 +3920,23 @@
         else if (scroll_to_mark)    last = scroll_to_mark[0];
 
         Lampa.Controller.enable('content');
-      });
+      // Render immediately. One season request enriches all rows in place;
+      // a timeout or error never blocks the episode list and is not cached.
+      if (serial && !params.similars && items[0].tmdb_id) this.getEpisodes(items[0].season, function (data) {
+        if (!current()) return;
+        rows.forEach(function (row) {
+          var metadata = findEpisode(data, row.element.season, row.element.episode);
+          if (!metadata) return;
+          if (metadata.name) row.html.find('.online-prestige__title').text(metadata.name);
+          if (metadata.runtime) row.html.find('.online-prestige__time').text(Lampa.Utils.secondsToTime(metadata.runtime * 60, true));
+          var info = [];
+          if (metadata.vote_average) info.push(Lampa.Template.get('online_prestige_rate', {rate: Number(metadata.vote_average).toFixed(1)}, true));
+          if (metadata.air_date && fully) info.push('<span class="kp-date">' + formatAirDate(metadata.air_date) + '</span>');
+          if (row.element.info) info.push(row.element.info);
+          row.html.find('.online-prestige__info').html(info.join('<span class="online-prestige-split">●</span>'));
+          row.updateImage(metadata);
+        });
+      }, items[0].tmdb_id);
     };
 
     this.contextMenu = function (params) {
@@ -3921,6 +4071,7 @@
     this.pause   = function () {};
     this.stop    = function () {};
     this.destroy = function () {
+      closed = true;
       network.clear();
       this.clearImages();
       files.destroy();
@@ -4240,7 +4391,7 @@
     Logger.info('launch', 'open activity', { id: movie && movie.id, title: ruTitle, orig: origTitle });
     Lampa.Activity.push({
       url:        '',
-      title:      Lampa.Lang.translate('title_online'),
+      title:      Lampa.Lang.translate('kp_online_title'),
       component:  COMPONENT_NAME,
       search:     ruTitle,
       search_one: ruTitle,
@@ -4274,6 +4425,7 @@
         en: 'Watch on kinopub',
         ua: 'Дивитися на kinopub'
       },
+      kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
       kp_infuse_no_file: {
         ru: 'Не удалось получить прямой файл KinoPub в выбранном качестве. Повторите запуск или выберите доступное качество.',
         en: 'No fresh direct KinoPub file at the selected quality. Retry or choose an available quality.',
