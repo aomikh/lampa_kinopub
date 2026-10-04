@@ -1,0 +1,28 @@
+[KP:boot] kp.js v1.0.73-mx.8 starting { session: 'uuuuuuuu', app: 200, ua: 'node-smoke' }
+[KP:auth] no token at startup
+[KP:boot] kp.js initialized
+OK   manifest set
+[KP:console] OK   manifest type=video
+OK   manifest type=video
+[KP:console] OK   manifest component=online_kp
+OK   manifest component=online_kp
+OK   onContextMenu fn
+OK   onContextLauch fn
+OK   component registered
+OK   component is constructor
+OK   lang keys >= 10
+[KP:console] OK   kp_watch translation present
+OK   kp_watch translation present
+OK   listener follow=full
+OK   listener has cb
+OK   settings component added
+OK   settings has log url
+OK   settings has max quality
+OK   settings has format
+OK   settings has login
+OK   default max_quality stored
+OK   default format stored
+OK   listener.cb runs without throwing
+OK   component instantiates
+
+=== 20 pass, 0 fail ===

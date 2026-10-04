@@ -358,3 +358,28 @@ test('after Infuse handoff, pending timers, proxy state and source teardown do n
   assert.equal(rt.requests.length,requestCount); assert.equal(rt.internal.length,0);
   assert.equal(marks,0); assert.equal(rt.notices.length,0);
 });
+
+test('large size metadata never lowers quality, changes the file or adds a pre-download before Infuse',()=>{
+  for(const size of [2**31-1,2**31+1,2**32+1,100*2**30]) {
+    const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse',kp_max_quality:'2160'}});
+    const {src,view,item}=source(rt);
+    item.videos[0].files=[
+      {quality:'2160p',size,file:'/fixture/max.mp4',urls:{http:signed}},
+      {quality:'1080p',size:1024,file:'/fixture/small.mp4',urls:{http:'https://video.example/small.mp4'}}
+    ];
+    src.find(22);rt.requests.at(-1).ok({item});
+    view.items[0].timeline={time:421,percent:1};
+    const before=rt.requests.length;
+    view.options.onEnter(view.items[0]);
+    assert.equal(rt.requests.length-before,1);
+    const resolve=new URL(rt.requests.at(-1).url);
+    assert.match(resolve.pathname,/items\/media-video-link$/);
+    assert.equal(resolve.searchParams.get('file'),'/fixture/max.mp4');
+    assert.equal(resolve.searchParams.get('type'),'http');
+    rt.requests.at(-1).ok({url:signed});
+    const data=new URL(rt.launches[0]).searchParams;
+    assert.equal(data.get('url'),signed); assert.equal(data.get('position'),'421');
+    assert.equal(data.has('size'),false); assert.equal(rt.internal.length,0);
+    assert.equal(rt.requests.length-before,1);
+  }
+});

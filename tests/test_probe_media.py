@@ -31,6 +31,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_request(self, head):
         path = self.path.split("?")[0]
+        size = getattr(self.server, "media_size", SIZE)
         self.seen.append((path, self.command, dict(self.headers)))
         if path in ("/redirect", "/redirect-other", "/loop"):
             self.send_response(302)
@@ -45,26 +46,26 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         request = self.headers.get("Range")
-        start, end = 0, SIZE - 1
+        start, end = 0, size - 1
         if request:
             a, b = request[6:].split("-")
             if not a:
-                start = max(0, SIZE - int(b))
+                start = max(0, size - int(b))
             else:
-                start, end = int(a), min(int(b), SIZE - 1) if b else SIZE - 1
+                start, end = int(a), min(int(b), size - 1) if b else size - 1
         status = 200 if head or path == "/ignore" or (path == "/nonzero-fail" and start > 0) else 206
         if self.headers.get("If-Range") == '"old-fixture"':
             status = 200
-        if not head and (path == "/rejected" or start >= SIZE):
+        if not head and (path == "/rejected" or start >= size):
             self.send_response(416)
-            self.send_header("Content-Range", "bytes */" + str(SIZE))
+            self.send_header("Content-Range", "bytes */" + str(size))
             self.end_headers()
             return
         self.send_response(status)
         self.send_header("Content-Type", "video/mp4")
-        self.send_header("Content-Length", str(SIZE if status == 200 else end - start + 1))
+        self.send_header("Content-Length", str(size if status == 200 else end - start + 1))
         if status == 206:
-            self.send_header("Content-Range", f"bytes {0 if path == '/wrong' else start}-{end}/{SIZE}")
+            self.send_header("Content-Range", f"bytes {0 if path == '/wrong' else start}-{end}/{size}")
         if path == "/encoded":
             self.send_header("Content-Encoding", "gzip")
         self.end_headers()
@@ -72,7 +73,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/stall":
                 time.sleep(0.2)
             try:
-                # Even the fake 300 MB open-ended representation sends <=1 KiB.
+                # Virtual sizes need no large file or allocation: <=1 KiB sent.
                 self.wfile.write(b"x" * (12 if path == "/truncated" else 1024))
             except (BrokenPipeError, ConnectionResetError):
                 pass
@@ -105,6 +106,26 @@ class ProbeTest(unittest.TestCase):
             self.assertEqual(r["verdict"], "headers-match")
             self.assertTrue(r["sample_complete"])
             self.assertLessEqual(r["bytes_read"], 1024)
+
+    def test_large_virtual_resources_keep_exact_offsets_and_constant_read_budget(self):
+        # This tests HTTP arithmetic and bounded reads, not real video speed.
+        # No multi-gigabyte file is created or downloaded.
+        try:
+            for size in (2**31 + 13, 2**32 + 13, 14620759377, 100 * 2**30):
+                with self.subTest(size=size):
+                    self.server.media_size = size
+                    report = probe.inspect_resource(self.base + "/ok")
+                    middle = size // 2
+                    self.assertEqual(len(report["checks"]), 5)
+                    self.assertEqual(report["checks"][2]["requested"], f"bytes={middle}-{middle+1023}")
+                    self.assertEqual(report["checks"][3]["requested"], f"bytes={middle}-")
+                    self.assertEqual(report["bytes_read_total"], 4096)
+                    for result in report["checks"][1:]:
+                        self.assertEqual(result["verdict"], "headers-match")
+                        self.assertEqual(result["bytes_read"], 1024)
+                        self.assertTrue(result["sample_complete"])
+        finally:
+            self.server.media_size = SIZE
 
     def test_another_file_uses_midpoint_and_invalid_offset_is_not_queried(self):
         self.assertEqual(probe.inspect_resource(self.base + "/ok")["checks"][2]["requested"], "bytes=150000000-150001023")

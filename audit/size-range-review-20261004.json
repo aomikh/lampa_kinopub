@@ -1,0 +1,48 @@
+{
+  "checked_at_utc": "2026-10-04T13:51:31.375433+00:00",
+  "repository_baseline": "27fed03258bdc6c58a20926dafcf775cb8284027",
+  "plugin_version": "1.0.73-mx.8",
+  "plugin_bytes": 238260,
+  "plugin_sha256": "13aa4d84a13a7f4557ecf6d4ee66e4c86c6b3479ae9eebd283f207d946f5c184",
+  "published_file_matches_baseline": true,
+  "runtime_code_changed": false,
+  "size_limit_defect_found": false,
+  "tests": {
+    "javascript_passed": 81,
+    "python_http_passed": 16,
+    "startup_checks_passed": 20,
+    "largest_virtual_representation_bytes": 107374182400,
+    "maximum_body_read_per_http_suite_inspection_bytes": 4096,
+    "actual_large_video_downloaded_or_played": false,
+    "notes": "Tests exercise numeric boundaries, exact file selection, signed-link and position preservation, virtual HTTP ranges and bounded samples. They do not measure Infuse performance."
+  },
+  "log_evidence": {
+    "source": "User Library log.webarchive, read-only; raw archive excluded from public repository",
+    "sha256": "56fdf96ff74f8910241f10d6c973a80ad68de051fc73f06aa857a5d47c17d2d6",
+    "observed_host_suffix": "ams-static-15.cdntogo.net",
+    "unique_host_prefix_redacted": true,
+    "cdn_stream_ids_count": 15,
+    "proxy_route_count": 15,
+    "direct_route_count": 0,
+    "local_close_count": 12,
+    "local_close_elapsed_ms_min": 20583.788991,
+    "local_close_elapsed_ms_max": 20996.035099,
+    "local_error_count": 2,
+    "http_range_headers_visible": false,
+    "media_size_visible": false,
+    "attribution_of_each_connection_to_infuse_confirmed": false,
+    "proxy_caused_playback_failure_proven": false
+  },
+  "existing_network_trial": {
+    "repository": "aomikh/shadowrocket-configs",
+    "commit": "b685b22f50933b1f44e14fc7b545cb1fd7fe6a02",
+    "rule": "DOMAIN-SUFFIX,ams-static-15.cdntogo.net,DIRECT",
+    "created_in_this_task": false,
+    "profile_applied_on_apple_tv_confirmed": false,
+    "direct_playback_result_available": false
+  },
+  "range_failure_root_cause_confirmed": false,
+  "speed_improvement_measured": false,
+  "device_playback_and_seek_verified": false,
+  "next_step": "Apply the already-authorized current Shadowrocket profile on Apple TV, reopen the same movie through Lampa to obtain a fresh URL, keep quality fixed and compare playback/seek with the new connection log."
+}

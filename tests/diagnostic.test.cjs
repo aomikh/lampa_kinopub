@@ -142,6 +142,18 @@ test('small file boundaries and suffix use the actual file size',async()=>{
   const {result}=await check(async(_url,options)=>server(options,5));
   assert.equal(result[2].requested,'bytes=2-4');result.slice(1).forEach(r=>assert.equal(r.verdict,'headers-match'));
 });
+test('large size boundaries retain exact middle and suffix offsets without browser body reads',async()=>{
+  for(const size of [2**31-1,2**31+1,2**32-1,2**32+1,100*2**30]) {
+    const {result}=await check(async(_url,options)=>server(options,size));
+    const mid=Math.floor(size/2);
+    assert.equal(result.length,5);
+    assert.equal(result[2].requested,`bytes=${mid}-${mid+1023}`);
+    assert.equal(result[2].range,`bytes ${mid}-${mid+1023}/${size}`);
+    assert.equal(result[3].requested,`bytes=${mid}-`);
+    assert.equal(result[4].range,`bytes ${size-1024}-${size-1}/${size}`);
+    result.slice(1).forEach(r=>{assert.equal(r.verdict,'headers-match');assert.equal(r.bytesRead,0);});
+  }
+});
 test('compressed HEAD length is not used for an offset; encoding is visible',async()=>{
   const {result}=await check(async()=>response(200,{'Content-Length':'99999','Content-Encoding':'gzip'}));
   assert.equal(result.length,3);assert.equal(result[0].encoding,'gzip');assert.equal(result[2].requested,'bytes=-1024');
