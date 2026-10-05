@@ -1,0 +1,84 @@
+{
+  "date_local": "2026-10-05",
+  "timezone": "Asia/Yekaterinburg",
+  "basis": "Three user-supplied launch-report photos and user's description; no direct device access",
+  "image_names": [
+    "IMG_B530095C-E2A4-4AD1-A784-BFB3B7375E01.jpeg",
+    "IMG_150BDF03-ADB1-4A70-9A7D-D417B284DBF2.jpeg",
+    "IMG_CA098F63-2B48-4323-BFDA-96C99E871AA7.jpeg"
+  ],
+  "duplicate_photos_of_attempt_4": 2,
+  "plugin_version_shown": "1.0.73-mx.13",
+  "lampa_core_shown": 335,
+  "lampa_mx_native_version": null,
+  "infuse_version_last_user_report": "8.5.6 (5763)",
+  "infuse_version_shown_in_new_photos": null,
+  "kino_pub_id": 8613,
+  "year": 2014,
+  "quality": 1080,
+  "delivery_field": "hls2",
+  "mode": "vlc-source",
+  "file_label": "F1",
+  "input_url_label": "U2",
+  "output_url_label": "U2",
+  "same_report_session": true,
+  "initial_host": "api.service-kp.com",
+  "extension_hint": "mp4",
+  "attempts": [
+    {"number": 4, "prepare_ms": 1, "dispatch_ms": 0},
+    {"number": 6, "prepare_ms": 0, "dispatch_ms": 0}
+  ],
+  "item_ms": null,
+  "link_ms": null,
+  "build_ms": null,
+  "position_seconds": null,
+  "entries": 1,
+  "status": "submitted",
+  "boundary": "window.location.assign",
+  "new_version_loaded_on_device_confirmed": true,
+  "user_report": "File-source Infuse has slow startup and stops again after a short period of playback; user requests an alternative to the direct file",
+  "previous_error_record": "audit/infuse-device-error-20261005.json",
+  "previous_error_correlated_to_individual_attempt": false,
+  "first_frame_measured": false,
+  "stall_time_measured": false,
+  "same_address_vlc_device_report_available": false,
+  "response_headers_or_redirects_captured": false,
+  "actual_manifest_or_segments_verified": false,
+  "confirmed_findings": [
+    "The new attempts already select the hls2 field, not the normal Infuse http field",
+    "Plugin-side preparation is 0-1 ms and dispatch is 0 ms at the report clock resolution",
+    "The exact selected address is unchanged at the plugin boundary",
+    "The handoff is one video with no reported resume position",
+    "These timings do not measure application opening, media access, first frame or playback stability",
+    "hls2 is a KinoPub delivery field; it does not mean transport without HTTP(S), and mp4 is only an extension hint"
+  ],
+  "remaining_hypotheses": [
+    "Infuse compatibility with the actual HLS response; an authenticated response is needed",
+    "Redirect, expired-address or server error response; capture status, type and redirect chain",
+    "For file-source stalls separately: partial reads, source/network interruptions or Infuse cache behavior; no cause established"
+  ],
+  "next_control": {
+    "scope": "Ordinary file-source Infuse playback, not the failed HLS2 comparison",
+    "change": "If cache is Auto, compare Memory Only with original setting; keep title, file choice, 1080p, network and launch/resume position fixed",
+    "measure": "Manual time to first frame; watch beyond the previous stop point for 5-10 minutes; record elapsed playback time and media position if it stops",
+    "limits": "A different cache setting is a hypothesis test, not a promised fix; plugin API does not expose this setting"
+  },
+  "primary_sources": [
+    "https://support.firecore.com/hc/en-us/articles/215090997-API-for-Third-Party-Apps-Services",
+    "https://support.firecore.com/hc/en-us/articles/360015608854-Settings-Overview",
+    "https://community.firecore.com/t/streaming-error-com-firecore-media-player-error-1/47934/30",
+    "https://kinoapi.com/api_video.html"
+  ],
+  "publication_rechecked": {
+    "version": "1.0.73-mx.13",
+    "http_status": 200,
+    "bytes": 265498,
+    "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
+    "matches_local": true
+  },
+  "decision": "Do not force HLS2 as an alleged fix or invent another transport; retain explicit comparison and separate stall diagnosis from startup",
+  "runtime_changed": false,
+  "settings_changed": false,
+  "shadowrocket_changed": false,
+  "original_images_published": false
+}
