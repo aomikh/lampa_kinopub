@@ -3259,6 +3259,8 @@
       if (target == null && !((actualPlayer === 'infuse' || delegated) && element.quality === element._kpListedQuality)) target = element.quality;
       var stream = hlsTest ? pickInfuseHls2Test(element.kp.files, target) : streamForElement(element, target, actualPlayer);
       if (!stream) return null;
+      if (delegated && (stream.currentQuality > maxQuality() ||
+          (target && stream.currentQuality !== parseInt(String(target).replace(/[^0-9]/g, ''), 10)))) return null;
 
       // Title formatting:
       //   serial episodes → "s1e03 - Долгий день уходит в ночь"  (used in
@@ -3532,10 +3534,10 @@
             }
             return;
           }
-          // v1.0.29-diag: always dump manifest (was BARE-only). Need to see HLS2
-          // master content — if it has #EXT-X-MEDIA AUDIO entries we can use
-          // setSelectTrack/hls.audioTrack (Phase B on HLS2) without restart.
-          dumpStreamManifest(play.url);
+          // Apple web playback also needs no parallel debug download. With
+          // explicit http this unbounded text request can be the whole film.
+          // Preserve the existing diagnostic behavior on other platforms.
+          if (!Lampa.Platform.is('apple_tv')) dumpStreamManifest(play.url);
 
           if (useManifestProxy(actualPlayer)) {
             // Proxy is reachable — route the kinopub HLS4 master through it.
