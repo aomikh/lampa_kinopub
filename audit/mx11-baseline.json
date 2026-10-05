@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-10-04T18:11:35.003969+00:00",
+  "branch": "main",
+  "commit": "737d749faca186d95e41368e80be07c746695155",
+  "worktree_was_clean": true,
+  "local_remote_and_published_sha256": "79364f63674b3cbacfeaf353578110fe6ec9eb85dc6511d645dd13b68483a17f",
+  "bytes": 244946,
+  "lampa_source_commit": "b4a13b6af7fe2f3bbbcb91f4eb434ab3378f8d5d",
+  "agents_md_found": false,
+  "remote_branches": [
+    "main"
+  ]
+}
