@@ -58,12 +58,12 @@ function fixture({platform='apple_tv', modern=true, torrent=true, priority='anot
     if(torrent) sources.append(d.make('full-start__button view--torrent hide'));
     sources.append(d.make('full-start__button selector view--trailer'));
   }
-  const start={modules:[],use(m){this.modules.push(m);},unuse(m){this.modules=this.modules.filter(x=>x!==m);},emit(name){for(const m of this.modules) if(m[name]) m[name]();}};
+  const start={modules:[],use(m){this.modules.push(m);},unuse(m){this.modules=this.modules.filter(x=>x!==m);},emit(name){const handler='on'+name[0].toUpperCase()+name.slice(1); for(const m of this.modules.slice()) if(m[handler]) m[handler]();}};
   // Lampa's core owns/replaces Watch handlers before the appended plugin hook.
   // Simulate that lifecycle to catch the mx.7 regression on re-entry as well.
   const coreMenus=[], focus=[];
   start.use({onGroupButtons(){watch.off().on('hover:enter',()=>coreMenus.push('sources')).on('hover:focus',()=>focus.push('watch'));}});
-  start.emit('onGroupButtons');
+  start.emit('groupButtons');
   const movie={id:123,title:'Fixture movie',original_title:'Original fixture'};
   const event={type:'complite',body:holder,link:{items:[start]},data:{movie},object:{activity:{render:()=>holder}}};
   const activities=[],registered=[];
@@ -86,6 +86,7 @@ test('Apple TV: ordinary Watch opens KinoPub without a source menu or separate b
 test('both entries open the same KinoPub activity for the exact movie, without media or watched side effects',()=>{
   const f=fixture(); f.api.mountKinoPubCard(f.event);
   f.sources.find('.view--kinopub').trigger('hover:enter');
+  f.start.emit('groupButtons');
   f.watch.trigger('hover:enter');
   assert.equal(f.activities.length,2);
   for(const a of f.activities) {
@@ -107,16 +108,16 @@ test('repeated completion keeps one source and activation without extra buttons 
 test('native KinoPub pin cannot create a second KinoPub button; other pins/preferences remain',()=>{
   const f=fixture(); f.api.mountKinoPubCard(f.event);
   const pin=f.make('full-start__button button--priority view--kinopub'); f.visible.append(pin);
-  f.start.emit('onPriorityButton'); assert.equal(f.visible.find('.view--kinopub').length,0);
+  f.start.emit('priorityButton'); assert.equal(f.visible.find('.view--kinopub').length,0);
   f.visible.append(f.make('full-start__button button--priority another-source'));
-  f.start.emit('onPriorityButton'); assert.equal(f.visible.find('.another-source').length,1);
+  f.start.emit('priorityButton'); assert.equal(f.visible.find('.another-source').length,1);
   assert.equal(f.storage.full_btn_priority,'another-source');
   f.watch.trigger('hover:enter'); assert.equal(f.activities.length,1); assert.equal(f.coreMenus.length,0);
 });
 
 test('returning to the card rebinds Watch after core grouping and preserves focus handling',()=>{
   const f=fixture(); f.api.mountKinoPubCard(f.event);
-  for(let i=0;i<3;i++) {f.start.emit('onGroupButtons'); f.watch.trigger('hover:enter'); f.watch.trigger('hover:focus');}
+  for(let i=0;i<3;i++) {f.start.emit('groupButtons'); f.watch.trigger('hover:enter'); f.watch.trigger('hover:focus');}
   assert.equal(f.activities.length,3); assert.equal(f.coreMenus.length,0); assert.equal(f.focus.length,3);
   assert.equal(f.watch.hasClass('hide'),false);
 });
@@ -124,7 +125,7 @@ test('returning to the card rebinds Watch after core grouping and preserves focu
 test('destroy cancels card activation; a stale callback cannot open the movie',()=>{
   const f=fixture(); f.api.mountKinoPubCard(f.event);
   const stale=f.watch[0].events.find(h=>h.event==='hover:enter.kpWatch').fn;
-  f.start.emit('onDestroy'); stale(); f.watch.trigger('hover:enter'); f.start.emit('onGroupButtons');
+  f.start.emit('destroy'); stale(); f.watch.trigger('hover:enter'); f.start.emit('groupButtons');
   assert.equal(f.activities.length,0);
 });
 
@@ -145,7 +146,7 @@ test('Tizen retains the grouped source, without the Apple TV shortcut',()=>{
   const f=fixture({platform:'tizen'}); f.api.mountKinoPubCard(f.event);
   assert.equal(f.sources.find('.view--kinopub').length,1);
   assert.equal(f.visible.find('.kp-card-direct').length,0); assert.equal(f.start.modules.length,1);
-  f.start.emit('onGroupButtons'); f.watch.trigger('hover:enter');
+  f.start.emit('groupButtons'); f.watch.trigger('hover:enter');
   assert.equal(f.coreMenus.length,1); assert.equal(f.activities.length,0);
 });
 
@@ -169,4 +170,42 @@ test('missing movie cannot mount or launch a stale card',()=>{
 test('source markup has no release version, so later version bumps preserve its pin hash',()=>{
   const f=fixture(); const markup=f.api.kinoPubCardButton('view--online view--kinopub')[0].markup;
   assert.match(markup,/data-subtitle="KinoPub"/); assert.doesNotMatch(markup,/mx\.|1\.0\.73/);
+});
+
+test('a later group module cannot restore the Sources action after KinoPub',()=>{
+  const f=fixture(); f.api.mountKinoPubCard(f.event);
+  f.start.use({onGroupButtons(){f.watch.off().on('hover:enter',()=>f.coreMenus.push('late source menu'));}});
+  f.start.emit('groupButtons'); f.watch.trigger('hover:enter');
+  assert.equal(f.coreMenus.length,0); assert.equal(f.activities.length,1);
+});
+
+test('regrouping binds a replacement Watch node, not the detached previous button',()=>{
+  const f=fixture(); f.api.mountKinoPubCard(f.event);
+  f.watch.remove();
+  const replacement=f.make('full-start__button selector button--play'); f.visible.append(replacement);
+  f.start.emit('groupButtons'); replacement.trigger('hover:enter');
+  assert.equal(f.activities.length,1); assert.equal(f.coreMenus.length,0);
+  f.watch.trigger('hover:enter'); assert.equal(f.activities.length,1);
+});
+
+test('a repeated activation opens only one source until the card regains control',()=>{
+  const f=fixture(); f.api.mountKinoPubCard(f.event);
+  f.watch.trigger('hover:enter'); f.watch.trigger('hover:enter');
+  assert.equal(f.activities.length,1);
+  f.start.emit('groupButtons'); f.watch.trigger('hover:enter');
+  assert.equal(f.activities.length,2);
+});
+
+test('Tizen source may be opened again after return without Apple lifecycle hooks',()=>{
+  const f=fixture({platform:'tizen'}); f.api.mountKinoPubCard(f.event);
+  f.sources.find('.view--kinopub').trigger('hover:enter');
+  f.sources.find('.view--kinopub').trigger('hover:enter');
+  assert.equal(f.activities.length,2);
+});
+
+test('an empty replacement card disposes the previous movie action',()=>{
+  const f=fixture(); f.api.mountKinoPubCard(f.event);
+  const stale=f.watch[0].events.find(h=>h.event==='hover:enter.kpWatch').fn;
+  f.event.data={}; f.api.mountKinoPubCard(f.event); stale();
+  assert.equal(f.activities.length,0);
 });

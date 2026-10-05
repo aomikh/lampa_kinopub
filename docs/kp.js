@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.10';
+  var PLUGIN_VERSION  = '1.0.73-mx.11';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -2660,6 +2660,7 @@
     var infuseGeneration = 0;
     var infuseLaunching = false;
     var infuseTimer = null;
+    var sourceGeneration = 0, sourceTimer = null, destroyed = false;
     var object  = _object;
 
     var raw      = null;          // /v1/items/{id} response
@@ -2684,6 +2685,25 @@
 
     /* ---------- public API expected by component ---------- */
 
+    function beginSourceRequest() {
+      cancelInfuseLaunch();
+      network.clear();
+      clearTimeout(sourceTimer);
+      var generation = ++sourceGeneration, done = false;
+      function settle() {
+        if (destroyed || done || generation !== sourceGeneration) return false;
+        done = true;
+        clearTimeout(sourceTimer);
+        return true;
+      }
+      sourceTimer = setTimeout(function () {
+        if (!settle()) return;
+        network.clear();
+        component.doesNotAnswer();
+      }, 18000);
+      return settle;
+    }
+
     this.search = function (_object_, similar) {
       Logger.info('source', 'search() with similar', similar && similar[0] && similar[0].id);
       object = _object_;
@@ -2691,6 +2711,7 @@
     };
 
     this.searchByTitle = function (_object_, query) {
+      if (destroyed) return;
       var self = this;
       object = _object_;
 
@@ -2711,8 +2732,9 @@
         imdb: imdbRaw, imdbNum: imdbNum, type: typeFilter
       });
 
-      network.clear();
+      var settle = beginSourceRequest();
       KP.search(network, query, typeFilter, function (json) {
+        if (!settle()) return;
         var items = (json && json.items) || [];
         Logger.info('source', 'search ok', { count: items.length });
 
@@ -2724,74 +2746,45 @@
           Logger.debug('source', 'top candidates', preview);
         }
 
-        var card = null;
-
-        // 1) IMDB ID exact match — by far the most reliable, skips title noise
-        if (imdbNum) {
-          card = items.find(function (c) {
-            return parseInt(c.imdb || 0, 10) === imdbNum;
-          });
-          if (card) Logger.info('source', 'matched by imdb', { id: card.id, imdb: card.imdb });
-        }
-
-        // 2) type + year(±1) + parsed title match
-        if (!card) {
-          card = items.find(function (c) {
-            var cy = parseInt(c.year || 0, 10);
-            var t = splitKpTitle(c.title);
-            var typeOk = isSerial ? /serial|tvshow/i.test(c.type || '')
-                                  : !/serial|tvshow/i.test(c.type || '');
-            var titleOk = (orig && normalize(t.orig) === normalize(orig)) ||
-                          (rus  && normalize(t.rus)  === normalize(rus));
-            return typeOk && Math.abs(cy - year) <= 1 && titleOk;
-          });
-          if (card) Logger.info('source', 'matched by title+year+type', { id: card.id, year: card.year });
-        }
-
-        // 3) loose title+year (any type) — TMDB and kinopub may disagree on type
-        if (!card) {
-          card = items.find(function (c) {
-            var cy = parseInt(c.year || 0, 10);
-            var t = splitKpTitle(c.title);
-            return Math.abs(cy - year) <= 1 && (
-              (orig && normalize(t.orig) === normalize(orig)) ||
-              (rus  && normalize(t.rus)  === normalize(rus))
-            );
-          });
-          if (card) Logger.info('source', 'matched by title+year (loose)', { id: card.id });
-        }
-
-        // 4) single hit — trust it
-        if (!card && items.length === 1) {
-          card = items[0];
-          Logger.info('source', 'single result, taking it', { id: card.id });
-        }
-
-        if (card) {
-          Logger.info('source', 'matched card', { id: card.id, title: card.title, year: card.year, type: card.type });
-          self.find(card.id);
-        } else if (items.length) {
-          Logger.warn('source', 'no exact match, showing similars', { count: items.length });
+        // Only a unique verified identity may open automatically. A lone
+        // search hit, nearby year or another media type is not evidence.
+        var matches = items.filter(function (c) {
+          var candidateImdb = parseInt(c.imdb || 0, 10);
+          var typeOk = isSerial ? /^(serial|docuserial|tvshow)$/i.test(c.type || '')
+            : /^(movie|documovie|3d|concert)$/i.test(c.type || '');
+          if (!typeOk) return false;
+          if (imdbNum && candidateImdb) return imdbNum === candidateImdb;
+          var t = splitKpTitle(c.title);
+          var titleOk = (orig && normalize(t.orig) === normalize(orig)) ||
+                        (rus && normalize(t.rus) === normalize(rus));
+          return !!titleOk && year > 0 && parseInt(c.year || 0, 10) === year;
+        });
+        if (matches.length === 1) {
+          self.find(matches[0].id);
+        } else if (matches.length > 1) {
+          // Multiple editions with the same identity need an explicit choice.
           waitSimilars = true;
-          component.similars(items.map(adaptSimilar));
+          component.similars(matches.map(adaptSimilar));
           component.loading(false);
         } else {
-          Logger.warn('source', 'nothing found');
+          Lampa.Noty.show(Lampa.Lang.translate('kp_no_exact_match'));
           component.doesNotAnswer();
         }
       }, function (xhr, status) {
+        if (!settle()) return;
         Logger.error('source', 'search error', { http: xhr && xhr.status, status: status });
         component.doesNotAnswer();
       });
     };
 
     this.find = function (id) {
-      cancelInfuseLaunch();
+      if (destroyed) return;
       var self = this;
       Logger.info('source', 'find() id=' + id);
-      network.clear();
+      var settle = beginSourceRequest();
       KP.item(network, id, function (json) {
-        if (!json || !json.item) {
+        if (!settle()) return;
+        if (!json || !json.item || String(json.item.id) !== String(id)) {
           Logger.warn('source', 'item empty', json);
           component.doesNotAnswer();
           return;
@@ -2804,6 +2797,7 @@
           component.doesNotAnswer();
         }
       }, function (xhr, status) {
+        if (!settle()) return;
         Logger.error('source', 'find error', { http: xhr && xhr.status, status: status });
         component.doesNotAnswer();
       });
@@ -2849,6 +2843,9 @@
     };
 
     this.destroy = function () {
+      destroyed = true;
+      sourceGeneration++;
+      clearTimeout(sourceTimer);
       cancelInfuseLaunch();
       if (window._kpRefreshFilterAndChips === refreshHook) window._kpRefreshFilterAndChips = null;
       refreshHook = null;
@@ -4778,28 +4775,27 @@
 
   function mountKinoPubCard(e) {
     var movie = e && e.data && e.data.movie;
-    if (!movie) return;
+    if (!e) return;
     var holder = e.body || (e.object && e.object.activity && e.object.activity.render());
     if (!holder || !holder.find) return;
     var start = e.link && e.link.items && e.link.items[0];
-    if (start && start._kpCardControls && typeof start.unuse === 'function') {
-      if (start._kpCardControls.onDestroy) start._kpCardControls.onDestroy();
-      start.unuse(start._kpCardControls);
-      start._kpCardControls = null;
-    }
+    var previous = holder[0] && holder[0]._kpCardControls;
+    if (previous) previous.onDestroy();
     holder.find('.view--kinopub, .kp-card-direct').remove();
-    var alive = true;
+    if (!movie) return;
+    var alive = true, opening = false, observer = null, originalEmit = null, wrappedEmit = null;
     function open() {
-      if (!alive) return;
+      if (!alive || (originalEmit && opening)) return;
+      opening = !!originalEmit;
       resetTemplates();
       Lampa.Component.add(COMPONENT_NAME, component);
-      launchActivity(movie);
+      try { launchActivity(movie); } catch (err) { opening = false; throw err; }
     }
     var source = kinoPubCardButton('view--online view--kinopub').on('hover:enter', open);
     var sources = holder.find('.buttons--container').first();
     var visible = holder.find('.full-start-new__buttons, .full-start__buttons').first();
     var watch = holder.find('.button--play').first();
-    var directWatch = Lampa.Platform.is('apple_tv') && watch.length;
+    var directWatch = Lampa.Platform.is('apple_tv') && (watch.length || sources.length);
     if (sources.length) {
       // Lampa 335 groups these direct children under Watch -> Sources.
       sources.append(source);
@@ -4815,16 +4811,51 @@
         // User requested Watch -> KinoPub, not an extra button or source menu.
         // Core rebinds hover:enter on each groupButtons (including return).
         // Replace only activation; preserve its focus and navigation handlers.
+        var currentWatch = holder.find('.button--play').first();
+        if (watch[0] !== currentWatch[0]) watch.off('.kpWatch');
+        watch = currentWatch;
         watch.off('hover:enter').on('hover:enter.kpWatch', open).removeClass('hide');
-        visible.find('.button--priority.view--kinopub').remove();
+        holder.find('.button--priority.view--kinopub, .kp-card-direct').remove();
+      };
+      var controls = {
+        onDestroy: function () {
+          if (!alive) return;
+          alive = false;
+          watch.off('.kpWatch');
+          source.off('hover:enter');
+          if (observer) observer.disconnect();
+          if (start && wrappedEmit && start.emit === wrappedEmit) start.emit = originalEmit;
+          if (start && typeof start.unuse === 'function') start.unuse(controls);
+          if (holder[0] && holder[0]._kpCardControls === controls) delete holder[0]._kpCardControls;
+          if (start && start._kpCardControls === controls) start._kpCardControls = null;
+        }
       };
       if (start && typeof start.use === 'function' && typeof start.unuse === 'function') {
-        start._kpCardControls = {
-          onGroupButtons: bindWatch,
-          onPriorityButton: bindWatch,
-          onDestroy: function () { alive = false; watch.off('.kpWatch'); }
-        };
-        start.use(start._kpCardControls);
+        start._kpCardControls = controls;
+        start.use(controls);
+        // Emit runs modules in registration order (including onlyEvent).
+        // A later module can undo an onGroupButtons binding. Reconcile after
+        // the entire instance event, without changing global core/prototypes.
+        if (typeof start.emit === 'function') {
+          originalEmit = start.emit;
+          wrappedEmit = function (name) {
+            if (name === 'destroy') controls.onDestroy();
+            var result = originalEmit.apply(this, arguments);
+            if (alive && (name === 'groupButtons' || name === 'priorityButton' || name === 'toggle')) {
+              if (name !== 'priorityButton') opening = false;
+              bindWatch();
+            }
+            return result;
+          };
+          start.emit = wrappedEmit;
+        }
+      }
+      if (holder[0]) holder[0]._kpCardControls = controls;
+      // Covers asynchronously replaced buttons in alternative card layouts.
+      // childList only: our handler/class updates cannot feed an observer loop.
+      if (window.MutationObserver && holder[0]) {
+        observer = new window.MutationObserver(bindWatch);
+        observer.observe(holder[0], {childList: true, subtree: true});
       }
       bindWatch();
     }
@@ -4854,6 +4885,7 @@
         en: 'Watch on kinopub',
         ua: 'Дивитися на kinopub'
       },
+      kp_no_exact_match: { ru: 'Точное совпадение в KinoPub не найдено. Другой фильм или сериал не выбран.', en: 'No exact KinoPub match. No different title was selected.', ua: 'Точного збігу в KinoPub не знайдено.' },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
       kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
       kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
