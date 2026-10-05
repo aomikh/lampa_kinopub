@@ -1,0 +1,38 @@
+{
+  "date_local": "2026-10-05",
+  "timezone": "Asia/Yekaterinburg",
+  "basis": "User-supplied error screenshot after delivery of mx.13; no direct device access",
+  "image_name": "IMG_D4C9B6D1-2CCE-419E-B9AC-EF6A1893A6CB.jpeg",
+  "client_error": "Server didn't report the size of the file",
+  "plugin_version_shown": null,
+  "launch_mode_shown": null,
+  "delivery_shown": null,
+  "quality_shown": null,
+  "infuse_version_shown": null,
+  "first_frame_time_measured": false,
+  "final_response_or_redirects_captured": false,
+  "actual_resource_type_verified": false,
+  "vlc_same_address_playback_verified": false,
+  "mx13_device_install_confirmed": false,
+  "root_cause_confirmed": false,
+  "code_review": [
+    "Published main remains 8aed553b53ff24e905ce2c811f252c528d0f6550, runtime mx.13",
+    "preferredFormat selects hls2 by default for VLC and http for normal Infuse; actual fallback must be checked in the launch report",
+    "launchInfuseVlcSource passes one loaded VLC-selected URL without resolver, media probe or extra metadata",
+    "buildInfuseUrl uses documented play action and once-only nested URL encoding",
+    "The same error text was previously observed in the separate mx.10 HLS2 test; identical wording alone does not prove identical cause",
+    "Error text is not a capture of Content-Length, Content-Range, status or redirect responses"
+  ],
+  "next_required_evidence": "Return to the same Lampa session and show Infuse diagnostics or the recorded launch report, including version, mode, delivery and preparation times",
+  "decision": "Do not repeat the failed source test or change the runtime speculatively; use ordinary Infuse launch for the file-source control",
+  "runtime_changed": false,
+  "settings_changed": false,
+  "shadowrocket_changed": false,
+  "original_image_published": false,
+  "primary_source_check": {
+    "url": "https://community.firecore.com/t/m3u-playlist-support/14097/247",
+    "author": "james (Firecore)",
+    "date": "2026-10-02",
+    "finding": "8.5.6 basic M3U8 support covers specified link and path types; this is not proof that the unavailable KinoPub HLS source is compatible."
+  }
+}
