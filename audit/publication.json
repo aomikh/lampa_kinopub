@@ -1,42 +1,29 @@
 {
-  "version": "1.0.73-mx.14",
-  "verified_at_utc": "2026-10-05T14:40:39.045899+00:00",
+  "version": "1.0.73-mx.15",
+  "verified_at_utc": "2026-10-05T15:07:06.764Z",
   "responses": [
     {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.15",
       "status": 200,
-      "version": "1.0.73-mx.14",
-      "bytes": 265952,
-      "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63"
-    },
-    {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.13",
-      "status": 200,
-      "version": "1.0.73-mx.14",
-      "bytes": 265952,
-      "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63"
-    },
-    {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.14",
-      "status": 200,
-      "version": "1.0.73-mx.14",
-      "bytes": 265952,
-      "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63"
+      "version": "1.0.73-mx.15",
+      "bytes": 271099,
+      "sha256": "d86c4bb60740500546a55b7b950ea228d7748b29be960c5c0ae0b06a24d512b3",
+      "matches_local": true
     }
   ],
-  "runtime_commit": "1eec6d34829c9f164799f38ce7038f02d47464ba",
+  "runtime_commit": "17be262487602098251b6d7b2564c9e3a3154600",
   "workflow": {
-    "id": 37326484540,
+    "id": 37329990469,
     "status": "completed",
     "conclusion": "success",
-    "sha": "1eec6d34829c9f164799f38ce7038f02d47464ba",
-    "url": "https://github.com/aomikh/lampa_kinopub/actions/runs/37326484540"
+    "sha": "17be262487602098251b6d7b2564c9e3a3154600",
+    "url": "https://github.com/aomikh/lampa_kinopub/actions/runs/37329990469"
   },
-  "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63",
-  "bytes": 265952,
+  "sha256": "d86c4bb60740500546a55b7b950ea228d7748b29be960c5c0ae0b06a24d512b3",
+  "bytes": 271099,
   "all_urls_match_local": true,
-  "device_mx14_tested": false,
+  "device_mx15_tested": false,
   "last_confirmed_device_version": "1.0.73-mx.13",
-  "previous_publication_evidence": "https://github.com/aomikh/lampa_kinopub/blob/4f20a736c9b7bae7d950b715df9964ab49874cef/audit/publication.json",
-  "scope": "Fix browser-player audio list on Apple TV; no native or Infuse playback fix claimed"
+  "previous_publication_evidence": "https://github.com/aomikh/lampa_kinopub/blob/ffc41f23428a46ac35232c2954d96c3691d62075/audit/publication.json",
+  "scope": "User-requested default HLS4 handoff for Infuse with explicit direct-file mode; playback, speed, audio tracks and seeking on Apple TV unverified"
 }
