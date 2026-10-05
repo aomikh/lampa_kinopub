@@ -33,5 +33,6 @@
   "shadowrocket_changed": false,
   "ads_changed": false,
   "episode_images_changed": false,
-  "publication_status": "prepared; publication evidence is recorded separately after verification"
+  "publication_status": "published and byte-verified; see audit/publication.json",
+  "runtime_commit": "898ab1bce7c8242328dc2b1a7368a7bf53dfa00b"
 }

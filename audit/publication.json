@@ -1,39 +1,37 @@
 {
-  "checked_at_utc": "2026-10-05T05:18:10.747587+00:00",
+  "checked_at_utc": "2026-10-05T13:39:57.722104+00:00",
   "responses": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 260631,
-      "sha256": "52165e6e21a60ed8c873038893b1207ca40e039538844eb9fa3bdcdffbff09a7",
-      "version": "1.0.73-mx.12"
-    },
-    {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.10",
-      "status": 200,
-      "bytes": 260631,
-      "sha256": "52165e6e21a60ed8c873038893b1207ca40e039538844eb9fa3bdcdffbff09a7",
-      "version": "1.0.73-mx.12"
+      "bytes": 265498,
+      "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
+      "version": "1.0.73-mx.13"
     },
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.12",
       "status": 200,
-      "bytes": 260631,
-      "sha256": "52165e6e21a60ed8c873038893b1207ca40e039538844eb9fa3bdcdffbff09a7",
-      "version": "1.0.73-mx.12"
+      "bytes": 265498,
+      "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
+      "version": "1.0.73-mx.13"
+    },
+    {
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.13",
+      "status": 200,
+      "bytes": 265498,
+      "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
+      "version": "1.0.73-mx.13"
     }
   ],
-  "version": "1.0.73-mx.12",
-  "runtime_commit": "315b58a57b04b7ecd1ee1a455ddc3cc550bc7225",
-  "runtime_tree": "8cac2480d89c4f78740c58d79da9d9c466859f01",
-  "github_pages_run": "https://github.com/aomikh/lampa_kinopub/actions/runs/37267094917",
+  "version": "1.0.73-mx.13",
+  "runtime_commit": "898ab1bce7c8242328dc2b1a7368a7bf53dfa00b",
+  "runtime_tree": "6e46722241951e21d28a26949b633930fee17667",
+  "github_pages_run": "https://github.com/aomikh/lampa_kinopub/actions/runs/37318442762",
   "github_pages_conclusion": "success",
-  "remote_branches": [
-    "main"
-  ],
   "matches_local": true,
   "device_installation_verified": false,
+  "last_confirmed_device_version": "1.0.73-mx.12",
   "first_frame_before_after_measured": false,
-  "previous_publication_record": "https://github.com/aomikh/lampa_kinopub/blob/0285bf6f37fe07eb2006b39b0b7df43099eded6d/audit/publication.json",
-  "note": "Only release evidence changes after this verified runtime publication."
+  "previous_publication_record": "https://github.com/aomikh/lampa_kinopub/blob/82556c36b933f6bb7da6f4a1c59933b8cb36a31a/audit/publication.json",
+  "note": "The new mode is opt-in. No device playback result is asserted."
 }
