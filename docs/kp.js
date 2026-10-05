@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.11';
+  var PLUGIN_VERSION  = '1.0.73-mx.12';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -96,8 +96,141 @@
   var KEY_FORMAT      = 'kp_format';
   var KEY_PROXY       = 'kp_proxy';
   var KEY_SUBS        = 'kp_subtitles_enabled';
+  var KEY_LAUNCH_TRACE = 'kp_launch_trace';
   // Kept only in this JS session, never in storage or a remote diagnostic.
   var lastInfuseAttempt = null;
+
+  // Opt-in, bounded, session-local observations. Equality labels are assigned
+  // by exact string comparison, not reversible URL hashes. Nothing is sent to
+  // Logger/storage/server; disabling clears even the private equality table.
+  var LaunchTrace = (function () {
+    var attempts = [], identities = [], sequence = 0, identitySequence = 0;
+    var session = Math.random().toString(36).slice(2, 8);
+    function now() {
+      return window.performance && window.performance.now ? window.performance.now() : Date.now();
+    }
+    function elapsed(at) { return Math.max(0, Math.round(now() - at)); }
+    function clear() { attempts = []; identities = []; }
+    function enabled() {
+      if (!Lampa.Storage.get(KEY_LAUNCH_TRACE, false)) { clear(); return false; }
+      return Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple');
+    }
+    function active(trace) { return trace && enabled() && attempts.indexOf(trace) !== -1; }
+    function label(value, type) {
+      if (!value) return null;
+      var found = identities.find(function (entry) { return entry.type === type && entry.value === value; });
+      if (found) return found.label;
+      var id = type + (++identitySequence);
+      identities.push({ type: type, value: value, label: id });
+      if (identities.length > 64) identities.shift();
+      return id;
+    }
+    function start(player, item, raw) {
+      if (!enabled()) return null;
+      if (player === 'tvosselect') player = 'tvosSelect';
+      if (player === 'lampa') player = 'inner';
+      if (['tvospro', 'tvos', 'tvosl', 'tvosSelect', 'vlc', 'infuse', 'senplayer', 'vidhub', 'inner', 'svplayer'].indexOf(player) === -1) player = 'other';
+      var trace = { at: now(), data: {
+        attempt: ++sequence, session: session, player: player,
+        kp_id: numberValue(raw && raw.id), year: numberValue(raw && raw.year),
+        season: numberValue(item.season), episode: numberValue(item.episode),
+        status: 'preparing', item_ms: null, build_ms: null, link_ms: null, prepare_ms: null, dispatch_ms: null
+      } };
+      attempts.push(trace);
+      if (attempts.length > 8) attempts.shift();
+      return trace;
+    }
+    function selected(trace, stream) {
+      if (!active(trace)) return;
+      trace.data.file = label(stream.file, 'F');
+      trace.data.quality = stream.currentQuality;
+      trace.data.delivery = stream.delivery || null;
+      trace.data.input = label(stream.url, 'U');
+      // This is an extension hint, never proof of the container or codec.
+      var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec(stream.file || '');
+      trace.data.extension_hint = extension ? extension[1].toLowerCase() : null;
+    }
+    function endStage(trace) {
+      if (trace.stage) { trace.data[trace.stage + '_ms'] = elapsed(trace.stageAt); trace.stage = null; }
+    }
+    function stage(trace, name) {
+      if (!active(trace)) return;
+      endStage(trace);
+      trace.stage = name;
+      trace.stageAt = now();
+    }
+    function ready(trace, play) {
+      if (!active(trace)) return;
+      endStage(trace);
+      // Older item metadata can omit file and gain it during the refresh.
+      // Report the final selected file, not the incomplete pre-refresh hint.
+      if (play._kpInfuse) {
+        trace.data.file = label(play._kpFile, 'F');
+        trace.data.quality = play._kpQuality;
+        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec(play._kpFile || '');
+        trace.data.extension_hint = extension ? extension[1].toLowerCase() : null;
+      }
+      trace.readyAt = now();
+      trace.data.prepare_ms = elapsed(trace.at);
+      trace.data.output = label(play.url, 'U');
+      trace.data.resource = resourceInfo(play.url);
+      trace.data.position = play.timeline && isFinite(Number(play.timeline.time)) ? Number(play.timeline.time) : null;
+    }
+    function sent(trace, boundary, entries) {
+      if (!active(trace)) return;
+      trace.data.dispatch_ms = trace.readyAt == null ? null : elapsed(trace.readyAt);
+      trace.data.boundary = boundary;
+      trace.data.entries = entries;
+      trace.data.status = 'submitted';
+    }
+    function fail(trace, reason, status) {
+      if (!active(trace)) return;
+      trace.data.error_stage = trace.stage || (trace.data.boundary ? 'dispatch' : 'selection');
+      endStage(trace);
+      trace.data.status = reason;
+      trace.data.http_status = numberValue(status);
+      trace.data.elapsed_ms = elapsed(trace.at);
+    }
+    function snapshot() {
+      if (!enabled()) return [];
+      return JSON.parse(JSON.stringify(attempts.map(function (trace) { return trace.data; })));
+    }
+    function show() {
+      var records = snapshot();
+      if (!records.length) { Lampa.Noty.show(Lampa.Lang.translate('kp_trace_empty')); return; }
+      var controller = Lampa.Controller.enabled().name;
+      function back() { Lampa.Controller.toggle(controller); }
+      function value(v) { return v == null ? '?' : v; }
+      function menu() {
+        Lampa.Select.show({ title: Lampa.Lang.translate('kp_trace_report'),
+          items: records.slice().reverse().map(function (r) {
+            return { title: '#' + r.attempt + ' ' + r.player + ' / ' + value(r.quality) + 'p / ' + value(r.delivery),
+              subtitle: 'KP ' + value(r.kp_id) + ' / ' + value(r.file) + ' / ' + value(r.output) + ' / ' + r.status,
+              record: r };
+          }), onBack: back, onSelect: function (entry) {
+            var r = entry.record;
+            var text = 'KinoPub ' + PLUGIN_VERSION + ' / Lampa ' + (Lampa.Manifest.app_digital || '?') +
+              '\nsession: ' + r.session + ' / #' + r.attempt + ' / ' + r.player +
+              '\nKP: ' + value(r.kp_id) + ' / year: ' + value(r.year) + ' / S:' + value(r.season) + ' E:' + value(r.episode) +
+              '\n' + value(r.quality) + 'p / ' + value(r.delivery) + ' / file: ' + value(r.file) +
+              '\ninput: ' + value(r.input) + ' / output: ' + value(r.output) +
+              '\nhost: ' + value(r.resource && r.resource.host) + ' / extension_hint: ' + value(r.extension_hint) +
+              '\nitem_ms: ' + value(r.item_ms) + ' / link_ms: ' + value(r.link_ms) + ' / build_ms: ' + value(r.build_ms) +
+              '\nprepare_ms: ' + value(r.prepare_ms) + ' / dispatch_ms: ' + value(r.dispatch_ms) +
+              '\nstatus: ' + r.status + ' / boundary: ' + value(r.boundary) +
+              '\nposition: ' + value(r.position) + ' s / entries: ' + value(r.entries) +
+              (r.error_stage ? '\nerror_stage: ' + r.error_stage + ' / HTTP: ' + value(r.http_status) + ' / elapsed_ms: ' + value(r.elapsed_ms) : '') +
+              '\n\n' + Lampa.Lang.translate('kp_trace_limits') + '\n\n' + Lampa.Lang.translate('kp_trace_fields');
+            Lampa.Modal.open({ title: '#' + r.attempt + ' ' + r.player, size: 'large',
+              html: $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' }).text(text),
+              onBack: function () { Lampa.Modal.close(); menu(); } });
+          } });
+      }
+      menu();
+    }
+    return { start: start, selected: selected, stage: stage, ready: ready, sent: sent,
+      fail: fail, snapshot: snapshot, clear: clear, show: show };
+  })();
 
   // Never log URL paths: KinoPub can carry the credential in the path as
   // well as the query. This affects diagnostics only, never the media URL.
@@ -288,9 +421,9 @@
     return query.length ? 'infuse://x-callback-url/play?' + query.join('&') : null;
   }
 
-  function dispatchInfuse(play) {
+  function dispatchInfuse(play, trace) {
     var url = buildInfuseUrl(play);
-    if (!url) { Logger.warn('infuse', 'handoff rejected'); return false; }
+    if (!url) { LaunchTrace.fail(trace, 'rejected'); Logger.warn('infuse', 'handoff rejected'); return false; }
     pendingVoice = null;
     currentVoiceLabel = '';
     // Same scheme dispatch used by Lampa's external adapter. Its current
@@ -300,6 +433,7 @@
         delivery: play._kpInfuseHls2Test ? 'hls2-test' : 'http',
         prepareMs: play._kpPrepareMs,
         handoffMs: play._kpLinkReadyAt == null ? null : Math.max(0, Date.now() - play._kpLinkReadyAt) };
+      LaunchTrace.sent(trace, 'window.location.assign', url.split('&url=').length);
       window.location.assign(url);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
         resource: resourceInfo(play.url), deliveryField: play._kpInfuseHls2Test ? 'hls2-test' : 'http', quality: play._kpQuality,
@@ -307,6 +441,7 @@
       });
       return true;
     } catch (e) {
+      LaunchTrace.fail(trace, 'dispatch-error');
       Logger.error('infuse', 'handoff failed', { error: String(e) });
       Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_handoff_error'));
       return false;
@@ -2395,7 +2530,8 @@
       quality: quality,
       currentQuality: best.quality,
       label: best.label,
-      file: best.file
+      file: best.file,
+      delivery: url ? fmtList.find(function (fmt) { return best.urls[fmt] === url; }) : format
     };
   }
 
@@ -2422,7 +2558,7 @@
     if (!selected) return null;
     var url = infuseHls2TestUrl(selected.urls && selected.urls.hls2);
     if (!url && !selected.file) return null;
-    return { url: url, file: selected.file, currentQuality: selected.quality, label: selected.label };
+    return { url: url, file: selected.file, currentQuality: selected.quality, label: selected.label, delivery: 'hls2-test' };
   }
 
   function buildSubtitles(subs) {
@@ -2659,6 +2795,7 @@
     var infuseNetwork = new Lampa.Reguest();
     var infuseGeneration = 0;
     var infuseLaunching = false;
+    var infuseTrace = null;
     var infuseTimer = null;
     var sourceGeneration = 0, sourceTimer = null, destroyed = false;
     var object  = _object;
@@ -2858,6 +2995,8 @@
     /* ---------- internal helpers ---------- */
 
     function cancelInfuseLaunch() {
+      if (infuseLaunching) LaunchTrace.fail(infuseTrace, 'cancelled');
+      infuseTrace = null;
       infuseGeneration++;
       infuseLaunching = false;
       clearTimeout(infuseTimer);
@@ -2869,6 +3008,7 @@
       var hlsTest = delivery === 'hls2' && (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple'));
       delivery = hlsTest ? 'hls2' : 'http';
       infuseLaunching = true;
+      var trace = infuseTrace = LaunchTrace.start('infuse', item, raw);
       var generation = ++infuseGeneration;
       var kpId = raw.id;
       var stage = 'item';
@@ -2878,6 +3018,7 @@
         if (generation !== infuseGeneration || !infuseLaunching) return;
         infuseLaunching = false;
         clearTimeout(infuseTimer);
+        LaunchTrace.fail(trace, reason === 'link refresh timed out' ? 'timeout' : 'prepare-error', status);
         Logger.warn('infuse', reason, { stage: stage, status: status });
         var code = stage === 'file' ? 'KP-I2' : 'KP-I1';
         Lampa.Noty.show(Lampa.Lang.translate(hlsTest ? 'kp_infuse_no_hls2' : 'kp_infuse_no_file') + ' [' + code +
@@ -2899,13 +3040,15 @@
           play.url = url;
           play._kpLinkReadyAt = Date.now();
           play._kpPrepareMs = Date.now() - started;
+          LaunchTrace.ready(trace, play);
           infuseLaunching = false;
           clearTimeout(infuseTimer);
-          dispatchInfuse(play);
+          dispatchInfuse(play, trace);
         }
         if (play._kpFile) {
           Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
           armTimeout();
+          LaunchTrace.stage(trace, 'link');
           KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
             if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
             handoff(result && result.url);
@@ -2917,7 +3060,7 @@
       // Episodes retain their item refresh for the upcoming playlist.
       // Freeze the actual choice before refreshing metadata. A reordered
       // list can contain another codec/file at the same resolution.
-      var selectedPlay = toPlayElement(item, 'infuse', targetQuality, delivery);
+      var selectedPlay = toPlayElement(item, 'infuse', targetQuality, delivery, trace);
       if (!selectedPlay) { fail('no resource at selected quality'); return; }
       var playlistQuality = targetQuality;
       targetQuality = selectedPlay._kpQuality + 'p';
@@ -2926,8 +3069,10 @@
         if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
       }
       armTimeout();
+      LaunchTrace.stage(trace, 'item');
       KP.item(infuseNetwork, kpId, function (json) {
         if (generation !== infuseGeneration || !infuseLaunching || stage !== 'item') return;
+        LaunchTrace.stage(trace, 'build');
         var fresh = json && json.item;
         if (!fresh || String(fresh.id) !== String(kpId)) { fail('item identity mismatch'); return; }
         stage = 'file';
@@ -3248,7 +3393,7 @@
       return null;
     }
 
-    function toPlayElement(element, actualPlayer, targetQuality, delivery) {
+    function toPlayElement(element, actualPlayer, targetQuality, delivery, trace) {
       actualPlayer = detectActualPlayer(actualPlayer);
       var delegated = isAppleDelegatedPlayer(actualPlayer);
       var hlsTest = actualPlayer === 'infuse' && delivery === 'hls2';
@@ -3261,6 +3406,7 @@
       if (!stream) return null;
       if (delegated && (stream.currentQuality > maxQuality() ||
           (target && stream.currentQuality !== parseInt(String(target).replace(/[^0-9]/g, ''), 10)))) return null;
+      LaunchTrace.selected(trace, stream);
 
       // Title formatting:
       //   serial episodes → "s1e03 - Долгий день уходит в ночь"  (used in
@@ -3476,8 +3622,10 @@
           var actualPlayer = detectActualPlayer(options && options.player);
           if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality, options && options.delivery); return; }
           cancelInfuseLaunch();
-          var play = toPlayElement(item, actualPlayer, options && options.quality);
+          var trace = LaunchTrace.start(actualPlayer, item, raw);
+          var play = toPlayElement(item, actualPlayer, options && options.quality, undefined, trace);
           if (!play) {
+            LaunchTrace.fail(trace, 'no-resource');
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
             return;
           }
@@ -3526,9 +3674,12 @@
             // The destination owns media requests. Do not fetch a manifest (or
             // an entire http video) in parallel just to populate a debug log.
             try {
+              LaunchTrace.ready(trace, play);
+              LaunchTrace.sent(trace, 'Lampa.Player.play', playlist.length);
               Lampa.Player.play(play);
               Lampa.Player.playlist(playlist);
             } catch (e) {
+              LaunchTrace.fail(trace, 'dispatch-error');
               Logger.warn('player', 'Apple handoff failed', { stage: 'KP-A1', player: actualPlayer });
               Lampa.Noty.show(Lampa.Lang.translate('kp_player_handoff_error') + ' (KP-A1)');
             }
@@ -3647,6 +3798,8 @@
             return;
           }
 
+          LaunchTrace.ready(trace, play);
+          LaunchTrace.sent(trace, 'Lampa.Player.play', playlist.length);
           Lampa.Player.play(play);
           Lampa.Player.playlist(playlist);
           if (item.mark) item.mark();
@@ -4712,6 +4865,21 @@
       onChange: showInfuseDiagnostic
     });
 
+    if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
+      Lampa.SettingsApi.addParam({
+        component: 'kp',
+        param: { name: KEY_LAUNCH_TRACE, type: 'trigger', "default": false },
+        field: { name: Lampa.Lang.translate('kp_trace_enable'), description: Lampa.Lang.translate('kp_trace_descr') },
+        onChange: LaunchTrace.clear
+      });
+      Lampa.SettingsApi.addParam({
+        component: 'kp',
+        param: { name: 'kp_action_launch_trace', type: 'trigger', "default": false },
+        field: { name: Lampa.Lang.translate('kp_trace_report'), description: Lampa.Lang.translate('kp_trace_descr') },
+        onChange: LaunchTrace.show
+      });
+    }
+
     Lampa.SettingsApi.addParam({
       component: 'kp',
       param: { name: 'kp_action_logout', type: 'trigger', "default": false },
@@ -4889,6 +5057,12 @@
       },
       kp_no_exact_match: { ru: 'Точное совпадение в KinoPub не найдено. Другой фильм или сериал не выбран.', en: 'No exact KinoPub match. No different title was selected.', ua: 'Точного збігу в KinoPub не знайдено.' },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
+      kp_trace_enable: { ru: 'Запись этапов запуска', en: 'Record launch stages', ua: 'Запис етапів запуску' },
+      kp_trace_report: { ru: 'Отчёт последних запусков', en: 'Recent launch report', ua: 'Звіт останніх запусків' },
+      kp_trace_descr: { ru: 'Отключена по умолчанию. Последние 8 попыток только в памяти; без запросов к видео и отправки журнала. Выключение очищает запись.', en: 'Off by default. Last 8 attempts in memory only; no media requests or log upload. Disabling clears the record.', ua: 'Вимкнено типово. Останні 8 спроб лише в пам’яті; без запитів до відео й надсилання журналу. Вимкнення очищає запис.' },
+      kp_trace_empty: { ru: 'Включите запись этапов, затем выберите видео и плеер. После возврата откройте этот отчёт.', en: 'Enable stage recording, then select a video and player. Open this report after returning.', ua: 'Увімкніть запис етапів, виберіть відео та плеєр. Після повернення відкрийте звіт.' },
+      kp_trace_limits: { ru: 'Измеряется подготовка после выбора видео. Открытие приложения и первый кадр не измерены. Узел указан до перенаправлений. F и U сравнимы только в этом сеансе.', en: 'Measures preparation after selecting a video. App opening and first frame are not measured. Host precedes redirects. F and U are comparable only in this session.', ua: 'Вимірюється підготовка після вибору відео. Відкриття програми й перший кадр не виміряні. Вузол до перенаправлень. F та U порівнюються лише в цьому сеансі.' },
+      kp_trace_fields: { ru: 'item_ms: обновление материала; link_ms: получение ссылки; build_ms: сборка списка; prepare_ms: вся подготовка; dispatch_ms: от готовой ссылки до вызова передачи. null: этап отсутствовал/не завершён. submitted: вызов передачи, не воспроизведение. file: метка файла; input/output: метки точных адресов до/после подготовки. Разные U не доказывают разные файлы. entries: число видео в переданном объекте/схеме. Расширение не подтверждает контейнер, кодек, HDR или звук.', en: 'item_ms: item refresh; link_ms: link resolution; build_ms: playlist preparation; prepare_ms: total preparation; dispatch_ms: ready link to dispatch call. null: absent/incomplete stage. submitted is not playback. file: file label; input/output: exact URL labels before/after preparation. Different U labels do not prove different files. entries counts videos in the passed object/scheme. Extension does not prove container, codec, HDR or audio.', ua: 'item_ms: оновлення матеріалу; link_ms: отримання адреси; build_ms: список; prepare_ms: уся підготовка; dispatch_ms: від готової адреси до виклику передачі. null: етап відсутній/незавершений. submitted не означає відтворення. file: мітка файлу; input/output: мітки точних адрес до/після підготовки. Різні U не доводять різні файли. entries: кількість відео в переданому об’єкті/схемі. Розширення не підтверджує контейнер, кодек, HDR чи звук.' },
       kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
       kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
       kp_infuse_hls2_test: { ru: 'Infuse: проверить HLS2', en: 'Infuse: test HLS2', ua: 'Infuse: перевірити HLS2' },
