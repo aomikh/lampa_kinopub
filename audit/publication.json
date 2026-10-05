@@ -1,51 +1,39 @@
 {
-  "checked_at_utc": "2026-10-05T03:01:00.487988+00:00",
-  "repository": "aomikh/lampa_kinopub",
-  "code_commit": "3a8f77a192a52b017d09c42d070501e99d012aef",
-  "published_commit": "6c009f9dcd3cad289480896d58b022a6747f2c1b",
-  "version": "1.0.73-mx.11",
-  "published": true,
-  "pages_workflow": "https://github.com/aomikh/lampa_kinopub/actions/runs/37257584630",
-  "pages_workflow_conclusion": "success",
-  "remote_branches": [
-    "main"
-  ],
-  "history_rewritten": false,
-  "published_plugin_path": "docs/kp.js",
-  "rollback_baseline_commit": "737d749faca186d95e41368e80be07c746695155",
-  "results": [
+  "checked_at_utc": "2026-10-05T05:18:10.747587+00:00",
+  "responses": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 247358,
-      "sha256": "ba738a2f7ae6c3c8f4355a150822e03732800def1a37bff232ba7dcc355dab5c",
-      "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Mon, 05 Oct 2026 03:00:42 GMT"
+      "bytes": 260631,
+      "sha256": "52165e6e21a60ed8c873038893b1207ca40e039538844eb9fa3bdcdffbff09a7",
+      "version": "1.0.73-mx.12"
     },
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.10",
       "status": 200,
-      "bytes": 247358,
-      "sha256": "ba738a2f7ae6c3c8f4355a150822e03732800def1a37bff232ba7dcc355dab5c",
-      "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Mon, 05 Oct 2026 03:00:42 GMT"
+      "bytes": 260631,
+      "sha256": "52165e6e21a60ed8c873038893b1207ca40e039538844eb9fa3bdcdffbff09a7",
+      "version": "1.0.73-mx.12"
     },
     {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.11",
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.12",
       "status": 200,
-      "bytes": 247358,
-      "sha256": "ba738a2f7ae6c3c8f4355a150822e03732800def1a37bff232ba7dcc355dab5c",
-      "content_type": "application/javascript; charset=utf-8",
-      "last_modified": "Mon, 05 Oct 2026 03:00:42 GMT"
+      "bytes": 260631,
+      "sha256": "52165e6e21a60ed8c873038893b1207ca40e039538844eb9fa3bdcdffbff09a7",
+      "version": "1.0.73-mx.12"
     }
   ],
-  "all_local_remote_tree_checks_match": true,
-  "commit_map_file": "audit/mx11-commit-map.json",
-  "new_version_loaded_on_apple_tv": false,
-  "last_confirmed_device_version": "1.0.73-mx.10",
-  "continuous_infuse_playback_verified": false,
-  "speed_improvement_on_device_verified": false,
-  "seek_on_device_verified": false,
-  "range_failure_root_cause_confirmed": false,
-  "normal_infuse_delivery_changed": false
+  "version": "1.0.73-mx.12",
+  "runtime_commit": "315b58a57b04b7ecd1ee1a455ddc3cc550bc7225",
+  "runtime_tree": "8cac2480d89c4f78740c58d79da9d9c466859f01",
+  "github_pages_run": "https://github.com/aomikh/lampa_kinopub/actions/runs/37267094917",
+  "github_pages_conclusion": "success",
+  "remote_branches": [
+    "main"
+  ],
+  "matches_local": true,
+  "device_installation_verified": false,
+  "first_frame_before_after_measured": false,
+  "previous_publication_record": "https://github.com/aomikh/lampa_kinopub/blob/0285bf6f37fe07eb2006b39b0b7df43099eded6d/audit/publication.json",
+  "note": "Only release evidence changes after this verified runtime publication."
 }
