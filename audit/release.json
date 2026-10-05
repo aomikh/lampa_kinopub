@@ -19,6 +19,7 @@
   "speed_improvement_on_device_verified": false,
   "settings_reset": false,
   "shadowrocket_changed": false,
-  "publication_status": "prepared; publication verification pending",
-  "scope": "User-requested rollback of mx.11–mx.15 and removal of Infuse diagnostic/experimental menu actions"
+  "publication_status": "published and byte-verified; see audit/publication.json",
+  "scope": "User-requested rollback of mx.11–mx.15 and removal of Infuse diagnostic/experimental menu actions",
+  "runtime_commit": "8a4ebed63b087c2ab897bb6313e2ec4da188011a"
 }
