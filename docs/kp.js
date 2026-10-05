@@ -2786,6 +2786,7 @@
     };
 
     this.find = function (id) {
+      cancelInfuseLaunch();
       var self = this;
       Logger.info('source', 'find() id=' + id);
       network.clear();
@@ -2917,13 +2918,14 @@
       // The loaded card already identifies the selected movie file. Resolve
       // that exact file once, without fetching the same item a second time.
       // Episodes retain their item refresh for the upcoming playlist.
-      var selectedTest = hlsTest ? toPlayElement(item, 'infuse', targetQuality, delivery) : null;
-      if (hlsTest) {
-        if (!selectedTest) { fail('no HLS2 at selected quality'); return; }
-        targetQuality = selectedTest._kpQuality + 'p';
-      }
+      // Freeze the actual choice before refreshing metadata. A reordered
+      // list can contain another codec/file at the same resolution.
+      var selectedPlay = toPlayElement(item, 'infuse', targetQuality, delivery);
+      if (!selectedPlay) { fail('no resource at selected quality'); return; }
+      var playlistQuality = targetQuality;
+      targetQuality = selectedPlay._kpQuality + 'p';
       if (item.kp.kind === 'movie') {
-        var selectedMovie = selectedTest || toPlayElement(item, 'infuse', targetQuality, delivery);
+        var selectedMovie = selectedPlay;
         if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
       }
       armTimeout();
@@ -2948,10 +2950,10 @@
           Object.keys(element).forEach(function (key) { copy[key] = element[key]; });
           copy.kp = { kind: element.kp.kind, files: parseFiles(video.files),
             audios: video.audios || [], subtitles: video.subtitles || [] };
-          if (hlsTest && selectedTest._kpFile) {
-            copy.kp.files = copy.kp.files.filter(function (f) { return f.file === selectedTest._kpFile; });
+          if (element === item && selectedPlay._kpFile) {
+            copy.kp.files = copy.kp.files.filter(function (f) { return f.file === selectedPlay._kpFile; });
           }
-          return toPlayElement(copy, 'infuse', targetQuality, delivery);
+          return toPlayElement(copy, 'infuse', element === item ? targetQuality : playlistQuality, delivery);
         }
         var play = refreshed(item);
         if (!play) { fail('no resource at selected quality'); return; }
@@ -3474,6 +3476,7 @@
         onEnter: function (item, html, options) {
           var actualPlayer = detectActualPlayer(options && options.player);
           if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality, options && options.delivery); return; }
+          cancelInfuseLaunch();
           var play = toPlayElement(item, actualPlayer, options && options.quality);
           if (!play) {
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
