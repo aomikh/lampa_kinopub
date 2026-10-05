@@ -1,0 +1,25 @@
+{
+  "method": "GitHub connector Git-data API; no force update; exact tree comparison for each commit",
+  "commits": [
+    {
+      "local": "4908cff56ac7171374b04d170ce0b33aae5a6080",
+      "remote": "2546af8acacd411a10d8c619f035c27bc04e6f84",
+      "tree": "7035bba3bd94c1af87fe04dd4869daf0e255b180"
+    },
+    {
+      "local": "f6020967143654866f8ce5bfe4ef05fe72d239f2",
+      "remote": "f06b482d6cee64fe7100abcf7f4b9ed13b0510b1",
+      "tree": "cc6b65561a038274dff30a4e2fda9d2451279a8f"
+    },
+    {
+      "local": "2c7bd483fa031d04df0db393e01d8f01083b0dad",
+      "remote": "3a8f77a192a52b017d09c42d070501e99d012aef",
+      "tree": "d0e7cb86353f98e0485c3b0f221b6c11c56d1499"
+    },
+    {
+      "local": "b26bcd2fff15349afe6c3801fc61a898b07f83f0",
+      "remote": "6c009f9dcd3cad289480896d58b022a6747f2c1b",
+      "tree": "cd2be93f558b9f69f9e7c204678a3f9ea1167330"
+    }
+  ]
+}
