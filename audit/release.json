@@ -44,7 +44,7 @@
   "shadowrocket_changed": false,
   "ads_changed": false,
   "episode_images_changed": false,
-  "publication_status": "prepared; publication not yet verified",
-  "runtime_commit": null,
+  "publication_status": "published and byte-verified; see audit/publication.json",
+  "runtime_commit": "1eec6d34829c9f164799f38ce7038f02d47464ba",
   "python_http_tests_note": "Not rerun: diagnostic HTTP code unchanged; prior mx.13 result was 16 passing."
 }

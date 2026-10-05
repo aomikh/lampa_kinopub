@@ -1,37 +1,42 @@
 {
-  "checked_at_utc": "2026-10-05T13:39:57.722104+00:00",
+  "version": "1.0.73-mx.14",
+  "verified_at_utc": "2026-10-05T14:40:39.045899+00:00",
   "responses": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 265498,
-      "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
-      "version": "1.0.73-mx.13"
-    },
-    {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.12",
-      "status": 200,
-      "bytes": 265498,
-      "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
-      "version": "1.0.73-mx.13"
+      "version": "1.0.73-mx.14",
+      "bytes": 265952,
+      "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63"
     },
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.13",
       "status": 200,
-      "bytes": 265498,
-      "sha256": "1782394d3e93b9b1e93c9e3121d059ae07c7644b321bfe4c29bafb06bbd4d4b8",
-      "version": "1.0.73-mx.13"
+      "version": "1.0.73-mx.14",
+      "bytes": 265952,
+      "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63"
+    },
+    {
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.14",
+      "status": 200,
+      "version": "1.0.73-mx.14",
+      "bytes": 265952,
+      "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63"
     }
   ],
-  "version": "1.0.73-mx.13",
-  "runtime_commit": "898ab1bce7c8242328dc2b1a7368a7bf53dfa00b",
-  "runtime_tree": "6e46722241951e21d28a26949b633930fee17667",
-  "github_pages_run": "https://github.com/aomikh/lampa_kinopub/actions/runs/37318442762",
-  "github_pages_conclusion": "success",
-  "matches_local": true,
-  "device_installation_verified": false,
-  "last_confirmed_device_version": "1.0.73-mx.12",
-  "first_frame_before_after_measured": false,
-  "previous_publication_record": "https://github.com/aomikh/lampa_kinopub/blob/82556c36b933f6bb7da6f4a1c59933b8cb36a31a/audit/publication.json",
-  "note": "The new mode is opt-in. No device playback result is asserted."
+  "runtime_commit": "1eec6d34829c9f164799f38ce7038f02d47464ba",
+  "workflow": {
+    "id": 37326484540,
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "1eec6d34829c9f164799f38ce7038f02d47464ba",
+    "url": "https://github.com/aomikh/lampa_kinopub/actions/runs/37326484540"
+  },
+  "sha256": "67b150669116bfb917439d6209096c4b36c82ef92df75c240b78371fa9944f63",
+  "bytes": 265952,
+  "all_urls_match_local": true,
+  "device_mx14_tested": false,
+  "last_confirmed_device_version": "1.0.73-mx.13",
+  "previous_publication_evidence": "https://github.com/aomikh/lampa_kinopub/blob/4f20a736c9b7bae7d950b715df9964ab49874cef/audit/publication.json",
+  "scope": "Fix browser-player audio list on Apple TV; no native or Infuse playback fix claimed"
 }
