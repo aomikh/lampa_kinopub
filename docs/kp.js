@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.13';
+  var PLUGIN_VERSION  = '1.0.73-mx.14';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -3518,6 +3518,7 @@
       //   1. Empty voiceovers on Tizen broke the player lifecycle in v1.0.12.
       //   2. Single entry keeps player UI showing the active voice as label.
       var player   = actualPlayer;
+      var appleWebTracks = Lampa.Platform.is('apple_tv') && (player === 'inner' || player === 'lampa');
       var audios   = element.kp.audios || [];
       var voiceIdx = -1;
       var pickedLabel = '';
@@ -3552,10 +3553,14 @@
 
         // Keep the current-voice label fresh for the DOM override of
         // .player-panel__next-episode-name (see setupNextEpisodeLabelOverride).
-        if (delegated) currentVoiceLabel = '';
+        if (delegated || appleWebTracks) currentVoiceLabel = '';
         else if (pickedLabel) currentVoiceLabel = pickedLabel;
 
-        if (voiceIdx >= 0) {
+        // Core Player's tracks listener ignores discovered media tracks when
+        // work.voiceovers is present. On Apple TV's web player let that real
+        // list populate the menu; a single source label is not a track list.
+        // Keep the initial voice preference and Tizen/native paths unchanged.
+        if (voiceIdx >= 0 && !appleWebTracks) {
           if (useManifestProxy(player) && audios.length > 0) {
             // v1.0.31: Multi-entry voiceovers with onSelect callback.
             // Each voice is a different proxy URL (same kinopub master,

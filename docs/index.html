@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KinoPub 1.0.73-mx.13 для Lampa MX</title>
+<title>KinoPub 1.0.73-mx.14 для Lampa MX</title>
 <style>
   :root { color-scheme: dark; }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -24,7 +24,8 @@
 </head>
 <body>
 
-<h1>KinoPub 1.0.73-mx.13 для Lampa MX</h1>
+<h1>KinoPub 1.0.73-mx.14 для Lampa MX</h1>
+<p>В mx.14 исправлено скрытие обнаруженных аудиодорожек в браузерном плеере Lampa на Apple TV. Нативные tvOS-плееры, VLC и Infuse не изменены. Ускорение Infuse не подтверждено. <a href="https://github.com/aomikh/lampa_kinopub/blob/main/audit/apple-audio-mx14.md">Разбор и проверка звука</a>.</p>
 <p>В mx.13 добавлен разовый пункт <strong>Infuse: источник как у VLC</strong> при удержании строки видео. Он передаёт один готовый адрес без обновления ссылки, позиции, названия и внешних субтитров. Обычный режим Infuse и настройки не меняет. Совместимость потока и ускорение на устройстве не подтверждены. <a href="https://github.com/aomikh/lampa_kinopub/blob/main/audit/infuse-vlc-source-mx13.md">Описание проверки</a>.</p>
 <p>Собственное ответвление проекта <a href="https://github.com/mainsync-afk/lampa_kinopub">mainsync-afk</a>. Единственная ветка main, единственный опубликованный плагин kp.js. На Apple TV обычная кнопка «Смотреть» сразу открывает KinoPub, без отдельного значка и меню «Трейлеры / KinoPub». Выбор файла Infuse, отмена устаревших действий и привязка кнопки после обновления карточки исправлены. В mx.12 добавлена отключаемая запись этапов запуска без дополнительных запросов к видео. Ускорение на Apple TV и устранение ошибки диапазонов пока не подтверждены.</p>
 
@@ -37,14 +38,14 @@
 
 <div class="note">
   Прямая ссылка для добавления в Lampa: <br>
-  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.13</code>
+  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.14</code>
 </div>
 
 <h2>Установка</h2>
 <ol>
   <li>В Lampa откройте <em>Настройки → Расширения</em>.</li>
   <li>Замените адрес существующего KinoPub. При первой установке нажмите <em>Добавить плагин</em>. Оставьте только одну активную копию.</li>
-  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.13</code></li>
+  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.14</code></li>
   <li>Сохраните, полностью закройте Lampa MX через переключатель приложений Apple TV и откройте снова.</li>
   <li>На карточке фильма нажмите <strong>Смотреть</strong>. KinoPub открывается сразу внутри Lampa. Затем запустите выбранный материал через Infuse.</li>
   <li>Для сравнения включите <em>Настройки → KinoPub → Запись этапов запуска</em>, затем запустите выбранное видео. После возврата откройте <em>Отчёт последних запусков</em>. Запись не делает дополнительных запросов к видео. Первый кадр измеряйте отдельно.</li>
