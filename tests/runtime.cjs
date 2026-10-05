@@ -14,7 +14,6 @@ function runtime(options = {}) {
     abort() { this.aborted = true; }
   }
   let timerId = 0;
-  let clock = 0;
   function setTimer(fn) { timers.set(++timerId, fn); return timerId; }
   function jq() {
     const children={}, events={}, data={}, classes=new Set();
@@ -78,23 +77,17 @@ function runtime(options = {}) {
   const sandbox = {URL, Image: FakeImage, XMLHttpRequest: FakeXMLHttpRequest, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
     navigator: {userAgent: 'test'}, $, Lampa, document: {},
     setTimeout: setTimer, clearTimeout: id => timers.delete(id), setInterval: setTimer, clearInterval: id => timers.delete(id),
-    window: {Lampa,innerWidth:1920, fetch:options.fetch, AbortController:globalThis.AbortController, performance: {now: () => clock},
+    window: {Lampa,innerWidth:1920, fetch:options.fetch, AbortController:globalThis.AbortController,
       addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
   function $(arg) {return options.jquery ? options.jquery(arg) : jq(arg);}
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
   const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
-    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic',
-    'parseProbeRange','probeRangeVerdict','mountKinoPubCard','kinoPubCardButton','LaunchTrace','addSettings'];
+    'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates',
+    'mountKinoPubCard','kinoPubCardButton','addSettings'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;},getPendingVoice: function(){return pendingVoice;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
   return {api: sandbox.window.testAPI, storage, requests, mediaRequests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
-    advance(ms) {clock += ms;},
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }
-// Existing direct-file regression scenarios opt into the retained file mode.
-// The plain runtime continues to use the actual production defaults.
-function fileInfuseRuntime(options = {}) {
-  return runtime({...options, storage: {kp_infuse_delivery:'http', ...options.storage}});
-}
-module.exports = {runtime, fileInfuseRuntime};
+module.exports = {runtime};

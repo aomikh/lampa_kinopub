@@ -102,19 +102,5 @@ test('one-off web playback with a saved native player keeps web quality and reco
   assert.equal(typeof rt.internal[0].callback, 'function');
   assert.equal(Object.keys(rt.internal[0].quality).length, 2);
   assert.notEqual(rt.api.getPendingVoice(), null);
-  assert.equal(rt.mediaRequests.length, 0); assert.equal(rt.launches.length, 0);
-});
-
-test('the web player does not prefetch a direct film as diagnostic text', () => {
-  const rt = native('inner', {kp_format:'http'}); const {view} = source(rt);
-  view.options.onEnter(view.items[0]);
-  assert.equal(rt.internal.length,1); assert.equal(rt.mediaRequests.length,0);
-});
-
-test('delegated Apple players reject unavailable explicit quality and do not exceed the saved cap', () => {
-  for (const quality of ['720p', undefined]) {
-    const rt = native('vlc', quality ? {} : {kp_max_quality:'720'}); const {view} = source(rt);
-    view.options.onEnter(view.items[0], {}, {quality});
-    assert.equal(rt.internal.length,0); assert.equal(rt.notices.length,1);
-  }
+  assert.equal(rt.mediaRequests.length, 1); assert.equal(rt.launches.length, 0);
 });

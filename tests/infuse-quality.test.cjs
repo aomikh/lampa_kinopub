@@ -1,8 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-// Retained direct-file mode; production-default HLS4 is covered in infuse-hls4.test.cjs.
-const {fileInfuseRuntime: runtime}=require('./runtime.cjs');
+const {runtime}=require('./runtime.cjs');
 
 function qualityMenu(rt) {
   const c=new rt.api.component({movie:{id:111,title:'Fixture'}}), calls=[];

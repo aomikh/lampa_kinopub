@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.15';
+  var PLUGIN_VERSION  = '1.0.73-mx.16';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -94,146 +94,8 @@
   var KEY_LOG_URL     = 'kp_log_url';
   var KEY_MAX_QUAL    = 'kp_max_quality';
   var KEY_FORMAT      = 'kp_format';
-  var KEY_INFUSE_DELIVERY = 'kp_infuse_delivery';
   var KEY_PROXY       = 'kp_proxy';
   var KEY_SUBS        = 'kp_subtitles_enabled';
-  var KEY_LAUNCH_TRACE = 'kp_launch_trace';
-  // Kept only in this JS session, never in storage or a remote diagnostic.
-  var lastInfuseAttempt = null;
-
-  // Opt-in, bounded, session-local observations. Equality labels are assigned
-  // by exact string comparison, not reversible URL hashes. Nothing is sent to
-  // Logger/storage/server; disabling clears even the private equality table.
-  var LaunchTrace = (function () {
-    var attempts = [], identities = [], sequence = 0, identitySequence = 0;
-    var session = Math.random().toString(36).slice(2, 8);
-    function now() {
-      return window.performance && window.performance.now ? window.performance.now() : Date.now();
-    }
-    function elapsed(at) { return Math.max(0, Math.round(now() - at)); }
-    function clear() { attempts = []; identities = []; }
-    function enabled() {
-      if (!Lampa.Storage.get(KEY_LAUNCH_TRACE, false)) { clear(); return false; }
-      return Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple');
-    }
-    function active(trace) { return trace && enabled() && attempts.indexOf(trace) !== -1; }
-    function label(value, type) {
-      if (!value) return null;
-      var found = identities.find(function (entry) { return entry.type === type && entry.value === value; });
-      if (found) return found.label;
-      var id = type + (++identitySequence);
-      identities.push({ type: type, value: value, label: id });
-      if (identities.length > 64) identities.shift();
-      return id;
-    }
-    function start(player, item, raw) {
-      if (!enabled()) return null;
-      if (player === 'tvosselect') player = 'tvosSelect';
-      if (player === 'lampa') player = 'inner';
-      if (['tvospro', 'tvos', 'tvosl', 'tvosSelect', 'vlc', 'infuse', 'senplayer', 'vidhub', 'inner', 'svplayer'].indexOf(player) === -1) player = 'other';
-      var trace = { at: now(), data: {
-        attempt: ++sequence, session: session, player: player,
-        kp_id: numberValue(raw && raw.id), year: numberValue(raw && raw.year),
-        season: numberValue(item.season), episode: numberValue(item.episode),
-        status: 'preparing', item_ms: null, build_ms: null, link_ms: null, prepare_ms: null, dispatch_ms: null
-      } };
-      attempts.push(trace);
-      if (attempts.length > 8) attempts.shift();
-      return trace;
-    }
-    function selected(trace, stream) {
-      if (!active(trace)) return;
-      trace.data.file = label(stream.file, 'F');
-      trace.data.quality = stream.currentQuality;
-      trace.data.delivery = stream.delivery || null;
-      trace.data.input = label(stream.url, 'U');
-      // This is an extension hint, never proof of the container or codec.
-      var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec(stream.file || '');
-      trace.data.extension_hint = extension ? extension[1].toLowerCase() : null;
-    }
-    function endStage(trace) {
-      if (trace.stage) { trace.data[trace.stage + '_ms'] = elapsed(trace.stageAt); trace.stage = null; }
-    }
-    function stage(trace, name) {
-      if (!active(trace)) return;
-      endStage(trace);
-      trace.stage = name;
-      trace.stageAt = now();
-    }
-    function ready(trace, play) {
-      if (!active(trace)) return;
-      endStage(trace);
-      // Older item metadata can omit file and gain it during the refresh.
-      // Report the final selected file, not the incomplete pre-refresh hint.
-      if (play._kpInfuse) {
-        trace.data.mode = play._kpInfuseVlcSource ? 'vlc-source' : play._kpInfuseHls4 ? 'hls4' : 'standard';
-        trace.data.file = label(play._kpFile, 'F');
-        trace.data.quality = play._kpQuality;
-        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec(play._kpFile || '');
-        trace.data.extension_hint = extension ? extension[1].toLowerCase() : null;
-      }
-      trace.readyAt = now();
-      trace.data.prepare_ms = elapsed(trace.at);
-      trace.data.output = label(play.url, 'U');
-      trace.data.resource = resourceInfo(play.url);
-      trace.data.position = play.timeline && isFinite(Number(play.timeline.time)) ? Number(play.timeline.time) : null;
-    }
-    function sent(trace, boundary, entries) {
-      if (!active(trace)) return;
-      trace.data.dispatch_ms = trace.readyAt == null ? null : elapsed(trace.readyAt);
-      trace.data.boundary = boundary;
-      trace.data.entries = entries;
-      trace.data.status = 'submitted';
-    }
-    function fail(trace, reason, status) {
-      if (!active(trace)) return;
-      trace.data.error_stage = trace.stage || (trace.data.boundary ? 'dispatch' : 'selection');
-      endStage(trace);
-      trace.data.status = reason;
-      trace.data.http_status = numberValue(status);
-      trace.data.elapsed_ms = elapsed(trace.at);
-    }
-    function snapshot() {
-      if (!enabled()) return [];
-      return JSON.parse(JSON.stringify(attempts.map(function (trace) { return trace.data; })));
-    }
-    function show() {
-      var records = snapshot();
-      if (!records.length) { Lampa.Noty.show(Lampa.Lang.translate('kp_trace_empty')); return; }
-      var controller = Lampa.Controller.enabled().name;
-      function back() { Lampa.Controller.toggle(controller); }
-      function value(v) { return v == null ? '?' : v; }
-      function menu() {
-        Lampa.Select.show({ title: Lampa.Lang.translate('kp_trace_report'),
-          items: records.slice().reverse().map(function (r) {
-            return { title: '#' + r.attempt + ' ' + r.player + ' / ' + value(r.quality) + 'p / ' + value(r.delivery),
-              subtitle: 'KP ' + value(r.kp_id) + ' / ' + value(r.file) + ' / ' + value(r.output) + ' / ' + r.status,
-              record: r };
-          }), onBack: back, onSelect: function (entry) {
-            var r = entry.record;
-            var text = 'KinoPub ' + PLUGIN_VERSION + ' / Lampa ' + (Lampa.Manifest.app_digital || '?') +
-              '\nsession: ' + r.session + ' / #' + r.attempt + ' / ' + r.player +
-              '\nKP: ' + value(r.kp_id) + ' / year: ' + value(r.year) + ' / S:' + value(r.season) + ' E:' + value(r.episode) +
-              '\n' + value(r.quality) + 'p / ' + value(r.delivery) + ' / file: ' + value(r.file) +
-              (r.mode ? '\nmode: ' + r.mode : '') +
-              '\ninput: ' + value(r.input) + ' / output: ' + value(r.output) +
-              '\nhost: ' + value(r.resource && r.resource.host) + ' / extension_hint: ' + value(r.extension_hint) +
-              '\nitem_ms: ' + value(r.item_ms) + ' / link_ms: ' + value(r.link_ms) + ' / build_ms: ' + value(r.build_ms) +
-              '\nprepare_ms: ' + value(r.prepare_ms) + ' / dispatch_ms: ' + value(r.dispatch_ms) +
-              '\nstatus: ' + r.status + ' / boundary: ' + value(r.boundary) +
-              '\nposition: ' + value(r.position) + ' s / entries: ' + value(r.entries) +
-              (r.error_stage ? '\nerror_stage: ' + r.error_stage + ' / HTTP: ' + value(r.http_status) + ' / elapsed_ms: ' + value(r.elapsed_ms) : '') +
-              '\n\n' + Lampa.Lang.translate('kp_trace_limits') + '\n\n' + Lampa.Lang.translate('kp_trace_fields');
-            Lampa.Modal.open({ title: '#' + r.attempt + ' ' + r.player, size: 'large',
-              html: $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' }).text(text),
-              onBack: function () { Lampa.Modal.close(); menu(); } });
-          } });
-      }
-      menu();
-    }
-    return { start: start, selected: selected, stage: stage, ready: ready, sent: sent,
-      fail: fail, snapshot: snapshot, clear: clear, show: show };
-  })();
 
   // Never log URL paths: KinoPub can carry the credential in the path as
   // well as the query. This affects diagnostics only, never the media URL.
@@ -297,30 +159,6 @@
     if (!/^\d+$/.test(text)) return null;
     var n = Number(text);
     return isFinite(n) && n >= 0 && n <= 2147483647 ? n : null;
-  }
-
-  function infuseHls2TestUrl(value) {
-    if (!mediaUrl(value)) return null;
-    // Only urls.hls2 or a type=hls2 resolver may supply this test resource.
-    // KinoPub documents HLS URLs ending in .mp4 too: never rewrite the path.
-    var path = value.split('?')[0].split('#')[0];
-    if (/\.mpd$/i.test(path) || /\/(http|hls|hls4|manifest-proxy)(?:\/|$)/i.test(path)) return null;
-    return value;
-  }
-
-  function infuseHls4Url(value) {
-    if (!mediaUrl(value)) return null;
-    // Accept only a URL obtained from urls.hls4 or a type=hls4 resolver.
-    // Its signed entry point may end in .mp4 (documented by KinoPub).
-    // Never fabricate a .m3u8 suffix or rewrite an opaque signed address.
-    var path = value.split('?')[0].split('#')[0];
-    if (/\.mpd$/i.test(path) || /\/(http|hls|hls2|manifest-proxy)(?:\/|$)/i.test(path)) return null;
-    return value;
-  }
-
-  function infuseDelivery() {
-    if (!(Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple'))) return 'http';
-    return Lampa.Storage.get(KEY_INFUSE_DELIVERY, 'hls4') === 'http' ? 'http' : 'hls4';
   }
 
   function thumbnailUrl(value) {
@@ -412,16 +250,7 @@
   // Infuse 8.4.7+: repeated url/position/filename/sub groups, once-encoded.
   // No guessed Lampa MX callback scheme and no undocumented playlist=.
   function buildInfuseUrl(play) {
-    // Explicit comparison only: same single URL payload as the tvOS VLC
-    // adapter, with Infuse's documented action (play, not VLC's stream).
-    // Do not add a position, metadata, subtitles, or an episode playlist.
-    if (play._kpInfuseVlcSource) {
-      if (!play._kpInfuse || !mediaUrl(play.url)) return null;
-      var single = 'infuse://x-callback-url/play?url=' + encodeURIComponent(play.url);
-      return single.length <= 65536 ? single : null;
-    }
-    // HLS handoffs are one selected video, never a mixed/season playlist.
-    var list = !play._kpInfuseHls2Test && !play._kpInfuseHls4 && Array.isArray(play.playlist) && play.playlist.length ? play.playlist : [play];
+    var list = Array.isArray(play.playlist) && play.playlist.length ? play.playlist : [play];
     var start = list.indexOf(play);
     if (start < 0) start = list.findIndex(function (p) { return p && p.url === play.url; });
     if (start < 0) list = [play];
@@ -430,9 +259,7 @@
     var full = false;
     list.slice(0, 40).forEach(function (p, index) {
       if (full) return;
-      if (!p || !p._kpInfuse || !!p._kpInfuseHls2Test !== !!play._kpInfuseHls2Test ||
-          !!p._kpInfuseHls4 !== !!play._kpInfuseHls4 ||
-          !(p._kpInfuseHls4 ? infuseHls4Url(p.url) : p._kpInfuseHls2Test ? infuseHls2TestUrl(p.url) : infuseFileUrl(p.url))) { full = true; return; }
+      if (!p || !infuseFileUrl(p.url) || !p._kpInfuse) { full = true; return; }
       var position = p.timeline && Number(p.timeline.time);
       var part = 'url=' + encodeURIComponent(p.url) +
         '&position=' + (isFinite(position) && position > 0 ? Math.floor(position) : 0);
@@ -448,212 +275,25 @@
     return query.length ? 'infuse://x-callback-url/play?' + query.join('&') : null;
   }
 
-  function dispatchInfuse(play, trace) {
+  function dispatchInfuse(play) {
     var url = buildInfuseUrl(play);
-    if (!url) { LaunchTrace.fail(trace, 'rejected'); Logger.warn('infuse', 'handoff rejected'); return false; }
+    if (!url) { Logger.warn('infuse', 'handoff rejected'); return false; }
     pendingVoice = null;
     currentVoiceLabel = '';
     // Same scheme dispatch used by Lampa's external adapter. Its current
     // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
-    var delivery = play._kpInfuseVlcSource ? play._kpDelivery : play._kpInfuseHls4 ? 'hls4' : play._kpInfuseHls2Test ? 'hls2-test' : 'http';
     try {
-      lastInfuseAttempt = { url: play.url, at: Date.now(), quality: play._kpQuality,
-        delivery: delivery, mode: play._kpInfuseVlcSource ? 'vlc-source' : play._kpInfuseHls4 ? 'hls4' : 'standard',
-        prepareMs: play._kpPrepareMs,
-        handoffMs: play._kpLinkReadyAt == null ? null : Math.max(0, Date.now() - play._kpLinkReadyAt) };
-      LaunchTrace.sent(trace, 'window.location.assign', url.split('&url=').length);
       window.location.assign(url);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
-        resource: resourceInfo(play.url), deliveryField: delivery, quality: play._kpQuality,
-        entries: play._kpInfuseHls4 || play._kpInfuseHls2Test || play._kpInfuseVlcSource ? 1 : (play.playlist || [play]).length, callbacks: false
+        resource: resourceInfo(play.url), deliveryField: 'http', quality: play._kpQuality,
+        entries: (play.playlist || [play]).length, callbacks: false
       });
       return true;
     } catch (e) {
-      LaunchTrace.fail(trace, 'dispatch-error');
       Logger.error('infuse', 'handoff failed', { error: String(e) });
       Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_handoff_error'));
       return false;
     }
-  }
-
-  // Byte counts must not use numberValue's 32-bit episode/id limit.
-  function probeNumber(value) {
-    return /^\d+$/.test(String(value)) && Number(value) <= 9007199254740991 ? Number(value) : null;
-  }
-
-  function parseProbeRange(value) {
-    var match = /^bytes (?:(\d+)-(\d+)|\*)\/(\d+|\*)$/i.exec(value || '');
-    if (!match) return null;
-    var total = match[3] === '*' ? null : probeNumber(match[3]);
-    if (match[3] !== '*' && total === null) return null;
-    if (!match[1]) return total === null ? null : { total: total, unsatisfied: true };
-    var start = probeNumber(match[1]), end = probeNumber(match[2]);
-    if (start === null || end === null || end < start || (total !== null && end >= total)) return null;
-    return { start: start, end: end, total: total };
-  }
-
-  // "headers-match" is deliberately not a claim about received bytes/speed.
-  function probeRangeVerdict(result, request, size) {
-    if (result.status === 401 || result.status === 403) return 'authorization';
-    if (result.status === 200) return 'range-ignored';
-    var range = parseProbeRange(result.range);
-    if (result.status === 416) {
-      if (!range || !range.unsatisfied) return 'unknown-range';
-      if (size !== null && range.total !== size) return 'size-changed';
-      return range.total === 0 || (request.start != null && request.start >= range.total)
-        ? 'unsatisfiable' : 'rejected-range';
-    }
-    if (result.status !== 206) return 'http-error';
-    if (!result.range) return 'unknown-range'; // Missing OR CORS-hidden, never guess which.
-    if (!range || range.unsatisfied) return 'invalid-range';
-    if (size !== null && range.total !== null && size !== range.total) return 'size-changed';
-    var total = range.total === null ? size : range.total;
-    if (request.suffix && total === null) return 'unknown-range';
-    var start = request.suffix ? Math.max(0, total - request.suffix) : request.start;
-    var end = request.suffix || request.end == null ? (total === null ? null : total - 1) :
-      (total === null ? request.end : Math.min(request.end, total - 1));
-    if (range.start !== start || (end !== null && range.end > end)) return 'invalid-range';
-    if (result.length != null && probeNumber(result.length) !== range.end - range.start + 1) return 'invalid-range';
-    // RFC 9110 permits sending only a portion. Do not mislabel that as full
-    // coverage, or as proof that the server cannot seek.
-    return end === null || range.end < end ? 'headers-partial' : 'headers-match';
-  }
-
-  // Manual only: HEAD, start, middle, open-ended middle and suffix. At most
-  // five fetches, six seconds each, no retries. Do NOT read any browser body:
-  // stream chunk sizes are not controllable here. Abort even 200/error bodies.
-  // The separate CLI probe can read at most 1 KiB per validated range.
-  function probeInfuseResource(url, complete) {
-    var stopped = false, controller = null, timer = null, results = [], size = null;
-    var queue = [{ method: 'HEAD' }, { method: 'GET', start: 0, end: 1023 }];
-    function cancel() {
-      stopped = true;
-      clearTimeout(timer);
-      if (controller) controller.abort();
-    }
-    if (!infuseFileUrl(url) || !window.fetch || !window.AbortController) {
-      complete([{ error: 'unsupported' }]);
-      return cancel;
-    }
-    function run() {
-      if (stopped) return;
-      var request = queue.shift(), method = request.method;
-      var requested = method === 'HEAD' ? null : 'bytes=' + (request.suffix ? '-' + request.suffix :
-        request.start + '-' + (request.end == null ? '' : request.end));
-      var started = Date.now(), settled = false;
-      var current = controller = new window.AbortController();
-      function finish(result) {
-        if (settled || stopped) return;
-        settled = true;
-        clearTimeout(timer);
-        current.abort();
-        result.method = method;
-        result.requested = requested;
-        result.ms = Date.now() - started;
-        result.bytesRead = 0;
-        result.bodyChecked = false;
-        if (!result.error && method === 'GET') result.verdict = probeRangeVerdict(result, request, size);
-        results.push(result);
-        var range = parseProbeRange(result.range);
-        var encoded = result.encoding && result.encoding !== 'identity';
-        var errorType = /^(text\/html|application\/(json|vnd\.apple\.mpegurl|x-mpegurl))$/i.test(result.type || '');
-        if (!encoded && !errorType && method === 'HEAD' && result.status === 200) size = probeNumber(result.length);
-        if (!encoded && method === 'GET' && request.start === 0 && result.status === 206 &&
-            range && !range.unsatisfied && range.start === 0 && range.total !== null &&
-            (result.verdict === 'headers-match' || result.verdict === 'headers-partial')) size = range.total;
-        if (method === 'GET' && request.start === 0) {
-          // The screenshot offset is NOT reused for a different file.
-          if (size > 1 && !encoded && result.verdict !== 'size-changed') {
-            var middle = Math.floor(size / 2);
-            queue.push({ method: 'GET', start: middle, end: Math.min(size - 1, middle + 1023) });
-            queue.push({ method: 'GET', start: middle });
-          }
-          queue.push({ method: 'GET', suffix: 1024 });
-        }
-        // Auth/error-page responses and a changed representation need a new
-        // ordinary launch, not repeated requests to the same unusable link.
-        // Some CDNs forbid HEAD while allowing GET. Always try the first
-        // bounded GET before treating access denial as terminal.
-        if (method === 'GET' && (result.status === 401 || result.status === 403 || result.status === 404 ||
-            result.status === 410 || errorType || result.verdict === 'size-changed')) queue = [];
-        if (queue.length) run();
-        else { stopped = true; complete(results); }
-      }
-      timer = setTimeout(function () { finish({ error: 'timeout' }); }, 6000);
-      var options = { method: method, credentials: 'omit', cache: 'no-store',
-        redirect: 'follow', signal: current.signal };
-      if (method === 'GET') options.headers = { Range: requested };
-      try {
-        window.fetch(url, options).then(function (response) {
-          // Do not read a response body or log exception/response text.
-          if (response.body && response.body.cancel) response.body.cancel().catch(function () {});
-          if (stopped || settled) return;
-          function header(name, pattern) {
-            var value = response.headers.get(name);
-            return !value ? null : pattern.test(value) ? value : 'invalid';
-          }
-          var type = (response.headers.get('Content-Type') || '').split(';')[0].trim();
-          finish({ status: response.status, host: resourceInfo(response.url).host,
-            redirected: !!response.redirected,
-            type: /^[\w.+-]+\/[\w.+-]+$/.test(type) ? type : null,
-            length: header('Content-Length', /^\d+$/),
-            range: header('Content-Range', /^bytes (?:\d+-\d+|\*)\/(?:\d+|\*)$/i),
-            acceptRanges: header('Accept-Ranges', /^(bytes|none)$/i),
-            encoding: header('Content-Encoding', /^[a-z0-9-]{1,32}$/i) });
-        }, function () { finish({ error: 'network-or-cors' }); });
-      } catch (e) { finish({ error: 'unsupported' }); }
-    }
-    run();
-    return cancel;
-  }
-
-  function showInfuseDiagnostic() {
-    if (!lastInfuseAttempt) { Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_check_empty')); return; }
-    var attempt = lastInfuseAttempt;
-    var enabled = Lampa.Controller.enabled().name;
-    var body = $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' });
-    var summary = 'KinoPub ' + PLUGIN_VERSION + ' / Lampa ' + (Lampa.Manifest.app_digital || '?') +
-      '\n' + resourceInfo(attempt.url).host + ' / ' + (attempt.quality || '?') + 'p' +
-      '\nDelivery: ' + attempt.delivery + ' / mode: ' + attempt.mode +
-      '\n' + Lampa.Lang.translate('kp_infuse_prepare') + ': ' + (attempt.prepareMs == null ? '?' : attempt.prepareMs) + ' ms' +
-      '\n' + Lampa.Lang.translate('kp_infuse_dispatch_time') + ': ' + (attempt.handoffMs == null ? '?' : attempt.handoffMs) + ' ms' +
-      '\n' + Lampa.Lang.translate('kp_infuse_link_age') + ': ' + Math.floor((Date.now() - attempt.at) / 1000) + ' s';
-    var hlsTest = attempt.delivery === 'hls2-test';
-    var hls4 = attempt.delivery === 'hls4';
-    var vlcSource = attempt.mode === 'vlc-source';
-    body.text(summary + '\n' + Lampa.Lang.translate(vlcSource ? 'kp_infuse_vlc_limits' : hls4 ? 'kp_infuse_hls4_limits' : hlsTest ? 'kp_infuse_hls2_limits' : 'kp_infuse_check_running'));
-    var stop = function () {};
-    Lampa.Modal.open({ title: Lampa.Lang.translate('kp_infuse_check'), html: body, size: 'medium',
-      onBack: function () { stop(); Lampa.Modal.close(); Lampa.Controller.toggle(enabled); } });
-    // File Range/size diagnostics do not describe an HLS manifest or segments.
-    if (hlsTest || hls4 || vlcSource) return;
-    stop = probeInfuseResource(attempt.url, function (results) {
-      Lampa.Modal.close();
-      var limits = Lampa.Lang.translate('kp_infuse_check_limits');
-      var entries = results.map(function (r) {
-        var title = (r.method || '') + (r.requested ? ' ' + r.requested : '') + ': ' +
-          (r.error ? Lampa.Lang.translate('kp_infuse_probe_' + r.error) : 'HTTP ' + r.status);
-        var verdict = r.verdict ? Lampa.Lang.translate('kp_infuse_range_' + r.verdict) : '';
-        return { title: title, subtitle: verdict, detail: title + '\n' + verdict + '\n' +
-          (r.host || '?') + (r.redirected ? ' (redirect)' : '') + '\n' +
-          'Headers: ' + (r.ms == null ? '?' : r.ms) + ' ms / Body: 0 bytes\n' +
-          'Content-Type: ' + (r.type || '?') + '\nContent-Length: ' + (r.length || '?') +
-          '\nContent-Range: ' + (r.range || '?') + '\nAccept-Ranges: ' + (r.acceptRanges || '?') +
-          '\nContent-Encoding: ' + (r.encoding || '?') };
-      });
-      entries.unshift({ title: Lampa.Lang.translate('kp_infuse_report'), subtitle: 'KinoPub ' + PLUGIN_VERSION,
-        detail: summary + '\n\n' + entries.map(function (e) { return e.title + '\n' + e.subtitle; }).join('\n') });
-      function report() {
-        Lampa.Select.show({ title: Lampa.Lang.translate('kp_infuse_check'), items: entries,
-          onBack: function () { Lampa.Controller.toggle(enabled); },
-          onSelect: function (entry) {
-            Lampa.Modal.open({ title: Lampa.Lang.translate('kp_infuse_check'), size: 'large',
-              html: $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' }).text(entry.detail + '\n\n' + limits),
-              onBack: function () { Lampa.Modal.close(); report(); } });
-          } });
-      }
-      report();
-    });
   }
 
   /* ============================================================ *
@@ -1095,10 +735,10 @@
       item: function (network, id, ok, err) {
         api(network, '/items/' + id, null, ok, err);
       },
-      mediaVideoLink: function (network, file, ok, err, delivery) {
+      mediaVideoLink: function (network, file, ok, err) {
         // Official exact-file resolver. Do not derive a URL from a HLS path
         // or reuse a cached item link when this request fails.
-        api(network, '/items/media-video-link', { file: file, type: delivery === 'hls4' ? 'hls4' : delivery === 'hls2' ? 'hls2' : 'http' }, ok, err);
+        api(network, '/items/media-video-link', { file: file, type: 'http' }, ok, err);
       },
       profile: function (network, ok, err) {
         api(network, '/user', null, ok, err);
@@ -2094,7 +1734,7 @@
 
   function preferredFormat(player) {
     player = detectActualPlayer(player);
-    if (player === 'infuse') return infuseDelivery();
+    if (player === 'infuse') return 'http';
     if (KP_BLOB_TEST) {
       // Legacy diagnostic — see KP_BLOB_TEST flag.
       return 'hls4';
@@ -2560,49 +2200,21 @@
       quality: quality,
       currentQuality: best.quality,
       label: best.label,
-      file: best.file,
-      delivery: url ? fmtList.find(function (fmt) { return best.urls[fmt] === url; }) : format
+      file: best.file
     };
   }
 
-  // Offer only qualities available for the selected Infuse delivery, without resolving every file
+  // Offer only actual direct-file qualities, without resolving every file
   // or changing the saved quality limit/player. No speculative CDN probes.
   function infuseQualityOptions(files) {
     var seen = {};
     return (files || []).filter(function (file) {
-      var available = infuseDelivery() === 'hls4' ? pickInfuseHls4(files, file.quality + 'p') : pickStream(files, 'http', file.quality + 'p', true);
-      if (seen[file.quality] || !available) return false;
+      if (seen[file.quality] || !pickStream(files, 'http', file.quality + 'p', true)) return false;
       seen[file.quality] = true;
       return true;
     }).map(function (file) {
       return { title: file.quality + 'p', quality: file.quality + 'p' };
     });
-  }
-
-  function pickInfuseHls2Test(files, target) {
-    // Select quality before checking delivery. No silent lower-quality,
-    // HLS4 or HTTP fallback when HLS2 is absent from the selected file.
-    var eligible = (files || []).filter(function (f) { return f.quality <= maxQuality(); });
-    var selected = target ? eligible.find(function (f) {
-      return f.quality === parseInt(String(target).replace(/[^0-9]/g, ''), 10);
-    }) : eligible[0];
-    if (!selected) return null;
-    var url = infuseHls2TestUrl(selected.urls && selected.urls.hls2);
-    if (!url && !selected.file) return null;
-    return { url: url, file: selected.file, currentQuality: selected.quality, label: selected.label, delivery: 'hls2-test' };
-  }
-
-  function pickInfuseHls4(files, target) {
-    // Fix quality and file before resolving. Do not silently switch to the
-    // old HTTP path, HLS2, or a different/lower-quality edition on failure.
-    var eligible = (files || []).filter(function (f) { return f.quality <= maxQuality(); });
-    var selected = target ? eligible.find(function (f) {
-      return f.quality === parseInt(String(target).replace(/[^0-9]/g, ''), 10);
-    }) : eligible[0];
-    if (!selected) return null;
-    var url = infuseHls4Url(selected.urls && selected.urls.hls4);
-    if (!url && !selected.file) return null;
-    return { url: url, file: selected.file, currentQuality: selected.quality, label: selected.label, delivery: 'hls4' };
   }
 
   function buildSubtitles(subs) {
@@ -2839,9 +2451,7 @@
     var infuseNetwork = new Lampa.Reguest();
     var infuseGeneration = 0;
     var infuseLaunching = false;
-    var infuseTrace = null;
     var infuseTimer = null;
-    var sourceGeneration = 0, sourceTimer = null, destroyed = false;
     var object  = _object;
 
     var raw      = null;          // /v1/items/{id} response
@@ -2866,25 +2476,6 @@
 
     /* ---------- public API expected by component ---------- */
 
-    function beginSourceRequest() {
-      cancelInfuseLaunch();
-      network.clear();
-      clearTimeout(sourceTimer);
-      var generation = ++sourceGeneration, done = false;
-      function settle() {
-        if (destroyed || done || generation !== sourceGeneration) return false;
-        done = true;
-        clearTimeout(sourceTimer);
-        return true;
-      }
-      sourceTimer = setTimeout(function () {
-        if (!settle()) return;
-        network.clear();
-        component.doesNotAnswer();
-      }, 18000);
-      return settle;
-    }
-
     this.search = function (_object_, similar) {
       Logger.info('source', 'search() with similar', similar && similar[0] && similar[0].id);
       object = _object_;
@@ -2892,7 +2483,6 @@
     };
 
     this.searchByTitle = function (_object_, query) {
-      if (destroyed) return;
       var self = this;
       object = _object_;
 
@@ -2913,9 +2503,8 @@
         imdb: imdbRaw, imdbNum: imdbNum, type: typeFilter
       });
 
-      var settle = beginSourceRequest();
+      network.clear();
       KP.search(network, query, typeFilter, function (json) {
-        if (!settle()) return;
         var items = (json && json.items) || [];
         Logger.info('source', 'search ok', { count: items.length });
 
@@ -2927,45 +2516,73 @@
           Logger.debug('source', 'top candidates', preview);
         }
 
-        // Only a unique verified identity may open automatically. A lone
-        // search hit, nearby year or another media type is not evidence.
-        var matches = items.filter(function (c) {
-          var candidateImdb = parseInt(c.imdb || 0, 10);
-          var typeOk = isSerial ? /^(serial|docuserial|tvshow)$/i.test(c.type || '')
-            : /^(movie|documovie|3d|concert)$/i.test(c.type || '');
-          if (!typeOk) return false;
-          if (imdbNum && candidateImdb) return imdbNum === candidateImdb;
-          var t = splitKpTitle(c.title);
-          var titleOk = (orig && normalize(t.orig) === normalize(orig)) ||
-                        (rus && normalize(t.rus) === normalize(rus));
-          return !!titleOk && year > 0 && parseInt(c.year || 0, 10) === year;
-        });
-        if (matches.length === 1) {
-          self.find(matches[0].id);
-        } else if (matches.length > 1) {
-          // Multiple editions with the same identity need an explicit choice.
+        var card = null;
+
+        // 1) IMDB ID exact match — by far the most reliable, skips title noise
+        if (imdbNum) {
+          card = items.find(function (c) {
+            return parseInt(c.imdb || 0, 10) === imdbNum;
+          });
+          if (card) Logger.info('source', 'matched by imdb', { id: card.id, imdb: card.imdb });
+        }
+
+        // 2) type + year(±1) + parsed title match
+        if (!card) {
+          card = items.find(function (c) {
+            var cy = parseInt(c.year || 0, 10);
+            var t = splitKpTitle(c.title);
+            var typeOk = isSerial ? /serial|tvshow/i.test(c.type || '')
+                                  : !/serial|tvshow/i.test(c.type || '');
+            var titleOk = (orig && normalize(t.orig) === normalize(orig)) ||
+                          (rus  && normalize(t.rus)  === normalize(rus));
+            return typeOk && Math.abs(cy - year) <= 1 && titleOk;
+          });
+          if (card) Logger.info('source', 'matched by title+year+type', { id: card.id, year: card.year });
+        }
+
+        // 3) loose title+year (any type) — TMDB and kinopub may disagree on type
+        if (!card) {
+          card = items.find(function (c) {
+            var cy = parseInt(c.year || 0, 10);
+            var t = splitKpTitle(c.title);
+            return Math.abs(cy - year) <= 1 && (
+              (orig && normalize(t.orig) === normalize(orig)) ||
+              (rus  && normalize(t.rus)  === normalize(rus))
+            );
+          });
+          if (card) Logger.info('source', 'matched by title+year (loose)', { id: card.id });
+        }
+
+        // 4) single hit — trust it
+        if (!card && items.length === 1) {
+          card = items[0];
+          Logger.info('source', 'single result, taking it', { id: card.id });
+        }
+
+        if (card) {
+          Logger.info('source', 'matched card', { id: card.id, title: card.title, year: card.year, type: card.type });
+          self.find(card.id);
+        } else if (items.length) {
+          Logger.warn('source', 'no exact match, showing similars', { count: items.length });
           waitSimilars = true;
-          component.similars(matches.map(adaptSimilar));
+          component.similars(items.map(adaptSimilar));
           component.loading(false);
         } else {
-          Lampa.Noty.show(Lampa.Lang.translate('kp_no_exact_match'));
+          Logger.warn('source', 'nothing found');
           component.doesNotAnswer();
         }
       }, function (xhr, status) {
-        if (!settle()) return;
         Logger.error('source', 'search error', { http: xhr && xhr.status, status: status });
         component.doesNotAnswer();
       });
     };
 
     this.find = function (id) {
-      if (destroyed) return;
       var self = this;
       Logger.info('source', 'find() id=' + id);
-      var settle = beginSourceRequest();
+      network.clear();
       KP.item(network, id, function (json) {
-        if (!settle()) return;
-        if (!json || !json.item || String(json.item.id) !== String(id)) {
+        if (!json || !json.item) {
           Logger.warn('source', 'item empty', json);
           component.doesNotAnswer();
           return;
@@ -2978,7 +2595,6 @@
           component.doesNotAnswer();
         }
       }, function (xhr, status) {
-        if (!settle()) return;
         Logger.error('source', 'find error', { http: xhr && xhr.status, status: status });
         component.doesNotAnswer();
       });
@@ -3024,9 +2640,6 @@
     };
 
     this.destroy = function () {
-      destroyed = true;
-      sourceGeneration++;
-      clearTimeout(sourceTimer);
       cancelInfuseLaunch();
       if (window._kpRefreshFilterAndChips === refreshHook) window._kpRefreshFilterAndChips = null;
       refreshHook = null;
@@ -3039,55 +2652,26 @@
     /* ---------- internal helpers ---------- */
 
     function cancelInfuseLaunch() {
-      if (infuseLaunching) LaunchTrace.fail(infuseTrace, 'cancelled');
-      infuseTrace = null;
       infuseGeneration++;
       infuseLaunching = false;
       clearTimeout(infuseTimer);
       infuseNetwork.clear();
     }
 
-    function launchInfuseVlcSource(item, targetQuality) {
-      // Match the already-loaded VLC resource, not the HLS2 resolver test.
-      // An expired URL must fail in the client, not silently become a new file.
-      if (!Lampa.Platform.is('apple_tv') || destroyed || !raw || !raw.id) return;
-      cancelInfuseLaunch();
-      var started = Date.now();
-      var trace = LaunchTrace.start('infuse', item, raw);
-      var stream = selectPlaybackStream(item, 'vlc', targetQuality);
-      if (!stream || !mediaUrl(stream.url)) {
-        LaunchTrace.fail(trace, 'no-resource');
-        Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
-        return;
-      }
-      LaunchTrace.selected(trace, stream);
-      var play = { url: stream.url, _kpInfuse: true, _kpInfuseVlcSource: true,
-        _kpFile: stream.file, _kpQuality: stream.currentQuality, _kpDelivery: stream.delivery,
-        _kpPrepareMs: Date.now() - started, _kpLinkReadyAt: Date.now() };
-      LaunchTrace.ready(trace, play);
-      dispatchInfuse(play, trace);
-    }
-
-    function launchInfuse(item, items, targetQuality, delivery) {
+    function launchInfuse(item, items, targetQuality) {
       if (infuseLaunching || !raw || !raw.id) return;
-      var hlsTest = delivery === 'hls2' && (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple'));
-      delivery = hlsTest ? 'hls2' : delivery === 'http' ? 'http' : infuseDelivery();
-      var hls4 = delivery === 'hls4';
       infuseLaunching = true;
-      var trace = infuseTrace = LaunchTrace.start('infuse', item, raw);
       var generation = ++infuseGeneration;
       var kpId = raw.id;
       var stage = 'item';
-      var started = Date.now();
       Logger.info('infuse', 'refreshing KinoPub links', { season: item.season, episode: item.episode });
       function fail(reason, status) {
         if (generation !== infuseGeneration || !infuseLaunching) return;
         infuseLaunching = false;
         clearTimeout(infuseTimer);
-        LaunchTrace.fail(trace, reason === 'link refresh timed out' ? 'timeout' : 'prepare-error', status);
         Logger.warn('infuse', reason, { stage: stage, status: status });
         var code = stage === 'file' ? 'KP-I2' : 'KP-I1';
-        Lampa.Noty.show(Lampa.Lang.translate(hls4 ? 'kp_infuse_no_hls4' : hlsTest ? 'kp_infuse_no_hls2' : 'kp_infuse_no_file') + ' [' + code +
+        Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file') + ' [' + code +
           (numberValue(status) !== null ? ' HTTP ' + numberValue(status) : '') + ']');
       }
       // Bound each of the two API stages independently.
@@ -3102,43 +2686,31 @@
         stage = 'file';
         function handoff(url) {
           if (generation !== infuseGeneration || !infuseLaunching) return;
-          if (!(hls4 ? infuseHls4Url(url) : hlsTest ? infuseHls2TestUrl(url) : infuseFileUrl(url))) { fail('resolver returned no suitable resource'); return; }
+          if (!infuseFileUrl(url)) { fail('file resolver returned no direct resource'); return; }
           play.url = url;
-          play._kpLinkReadyAt = Date.now();
-          play._kpPrepareMs = Date.now() - started;
-          LaunchTrace.ready(trace, play);
           infuseLaunching = false;
           clearTimeout(infuseTimer);
-          dispatchInfuse(play, trace);
+          dispatchInfuse(play);
         }
         if (play._kpFile) {
           Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
           armTimeout();
-          LaunchTrace.stage(trace, 'link');
           KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
             if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
             handoff(result && result.url);
-          }, function (xhr) { fail('selected file resolution failed', xhr && xhr.status); }, delivery);
+          }, function (xhr) { fail('direct file resolution failed', xhr && xhr.status); });
         } else handoff(play.url);
       }
       // The loaded card already identifies the selected movie file. Resolve
       // that exact file once, without fetching the same item a second time.
       // Episodes retain their item refresh for the upcoming playlist.
-      // Freeze the actual choice before refreshing metadata. A reordered
-      // list can contain another codec/file at the same resolution.
-      var selectedPlay = toPlayElement(item, 'infuse', targetQuality, delivery, trace);
-      if (!selectedPlay) { fail('no resource at selected quality'); return; }
-      var playlistQuality = targetQuality;
-      targetQuality = selectedPlay._kpQuality + 'p';
       if (item.kp.kind === 'movie') {
-        var selectedMovie = selectedPlay;
+        var selectedMovie = toPlayElement(item, 'infuse', targetQuality);
         if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
       }
       armTimeout();
-      LaunchTrace.stage(trace, 'item');
       KP.item(infuseNetwork, kpId, function (json) {
         if (generation !== infuseGeneration || !infuseLaunching || stage !== 'item') return;
-        LaunchTrace.stage(trace, 'build');
         var fresh = json && json.item;
         if (!fresh || String(fresh.id) !== String(kpId)) { fail('item identity mismatch'); return; }
         stage = 'file';
@@ -3158,14 +2730,10 @@
           Object.keys(element).forEach(function (key) { copy[key] = element[key]; });
           copy.kp = { kind: element.kp.kind, files: parseFiles(video.files),
             audios: video.audios || [], subtitles: video.subtitles || [] };
-          if (element === item && selectedPlay._kpFile) {
-            copy.kp.files = copy.kp.files.filter(function (f) { return f.file === selectedPlay._kpFile; });
-          }
-          return toPlayElement(copy, 'infuse', element === item ? targetQuality : playlistQuality, delivery);
+          return toPlayElement(copy, 'infuse', targetQuality);
         }
         var play = refreshed(item);
-        if (!play) { fail('no resource at selected quality'); return; }
-        if (hlsTest || hls4) { submit(play); return; }
+        if (!play) { fail('no direct file at selected quality'); return; }
         var playlist = [];
         var selected = items.indexOf(item);
         var incomplete = false;
@@ -3459,34 +3027,16 @@
       return null;
     }
 
-    // Shared by actual VLC and the opt-in Infuse comparison; avoid two
-    // subtly different selections for the same row/quality/format settings.
-    function selectPlaybackStream(element, actualPlayer, targetQuality, delivery) {
+    function toPlayElement(element, actualPlayer, targetQuality) {
       actualPlayer = detectActualPlayer(actualPlayer);
       var delegated = isAppleDelegatedPlayer(actualPlayer);
-      var hlsTest = actualPlayer === 'infuse' && delivery === 'hls2';
-      var hls4 = actualPlayer === 'infuse' && (delivery || infuseDelivery()) === 'hls4';
       // A label generated for HLS (or URL-only metadata) is not an explicit
       // quality choice. Resolve the maximum for the actual Apple destination.
       // Keep explicit context choices and legacy changed quality fields exact.
       var target = targetQuality;
       if (target == null && !((actualPlayer === 'infuse' || delegated) && element.quality === element._kpListedQuality)) target = element.quality;
-      var stream = hls4 ? pickInfuseHls4(element.kp.files, target) : hlsTest ? pickInfuseHls2Test(element.kp.files, target) :
-        actualPlayer === 'infuse' ? pickStream(element.kp.files, 'http', target, true) : streamForElement(element, target, actualPlayer);
+      var stream = streamForElement(element, target, actualPlayer);
       if (!stream) return null;
-      if (delegated && (stream.currentQuality > maxQuality() ||
-          (target && stream.currentQuality !== parseInt(String(target).replace(/[^0-9]/g, ''), 10)))) return null;
-      return stream;
-    }
-
-    function toPlayElement(element, actualPlayer, targetQuality, delivery, trace) {
-      actualPlayer = detectActualPlayer(actualPlayer);
-      var delegated = isAppleDelegatedPlayer(actualPlayer);
-      var hlsTest = actualPlayer === 'infuse' && delivery === 'hls2';
-      var hls4 = actualPlayer === 'infuse' && (delivery || infuseDelivery()) === 'hls4';
-      var stream = selectPlaybackStream(element, actualPlayer, targetQuality, delivery);
-      if (!stream) return null;
-      LaunchTrace.selected(trace, stream);
 
       // Title formatting:
       //   serial episodes → "s1e03 - Долгий день уходит в ночь"  (used in
@@ -3523,14 +3073,12 @@
         delete play.quality;
         delete play.callback;
         play._kpInfuse = true;
-        play._kpInfuseHls2Test = hlsTest;
-        play._kpInfuseHls4 = hls4;
         play._kpQuality = stream.currentQuality;
         play._kpFile = stream.file;
         play.season = element.season;
         play.episode = element.episode;
         var seriesName = object.movie && (object.movie.name || object.movie.title) || '';
-        var extension = !hlsTest && !hls4 && /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || (stream.url || '').split('?')[0]).split('#')[0]);
+        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || (stream.url || '').split('?')[0]).split('#')[0]);
         play.filename = (element.kp.kind === 'episode' ? seriesName + ' ' + displayTitle : displayTitle) +
           (extension ? '.' + extension[1] : '');
         if (Lampa.Storage.get(KEY_SUBS, false)) {
@@ -3555,7 +3103,6 @@
       //   1. Empty voiceovers on Tizen broke the player lifecycle in v1.0.12.
       //   2. Single entry keeps player UI showing the active voice as label.
       var player   = actualPlayer;
-      var appleWebTracks = Lampa.Platform.is('apple_tv') && (player === 'inner' || player === 'lampa');
       var audios   = element.kp.audios || [];
       var voiceIdx = -1;
       var pickedLabel = '';
@@ -3590,14 +3137,10 @@
 
         // Keep the current-voice label fresh for the DOM override of
         // .player-panel__next-episode-name (see setupNextEpisodeLabelOverride).
-        if (delegated || appleWebTracks) currentVoiceLabel = '';
+        if (delegated) currentVoiceLabel = '';
         else if (pickedLabel) currentVoiceLabel = pickedLabel;
 
-        // Core Player's tracks listener ignores discovered media tracks when
-        // work.voiceovers is present. On Apple TV's web player let that real
-        // list populate the menu; a single source label is not a track list.
-        // Keep the initial voice preference and Tizen/native paths unchanged.
-        if (voiceIdx >= 0 && !appleWebTracks) {
+        if (voiceIdx >= 0) {
           if (useManifestProxy(player) && audios.length > 0) {
             // v1.0.31: Multi-entry voiceovers with onSelect callback.
             // Each voice is a different proxy URL (same kinopub master,
@@ -3706,15 +3249,9 @@
         similars: waitSimilars,
         onEnter: function (item, html, options) {
           var actualPlayer = detectActualPlayer(options && options.player);
-          if (actualPlayer === 'infuse' && options && options.delivery === 'vlc-source') {
-            launchInfuseVlcSource(item, options.quality); return;
-          }
-          if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality, options && options.delivery); return; }
-          cancelInfuseLaunch();
-          var trace = LaunchTrace.start(actualPlayer, item, raw);
-          var play = toPlayElement(item, actualPlayer, options && options.quality, undefined, trace);
+          if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality); return; }
+          var play = toPlayElement(item, actualPlayer, options && options.quality);
           if (!play) {
-            LaunchTrace.fail(trace, 'no-resource');
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
             return;
           }
@@ -3763,21 +3300,18 @@
             // The destination owns media requests. Do not fetch a manifest (or
             // an entire http video) in parallel just to populate a debug log.
             try {
-              LaunchTrace.ready(trace, play);
-              LaunchTrace.sent(trace, 'Lampa.Player.play', playlist.length);
               Lampa.Player.play(play);
               Lampa.Player.playlist(playlist);
             } catch (e) {
-              LaunchTrace.fail(trace, 'dispatch-error');
               Logger.warn('player', 'Apple handoff failed', { stage: 'KP-A1', player: actualPlayer });
               Lampa.Noty.show(Lampa.Lang.translate('kp_player_handoff_error') + ' (KP-A1)');
             }
             return;
           }
-          // Apple web playback also needs no parallel debug download. With
-          // explicit http this unbounded text request can be the whole film.
-          // Preserve the existing diagnostic behavior on other platforms.
-          if (!Lampa.Platform.is('apple_tv')) dumpStreamManifest(play.url);
+          // v1.0.29-diag: always dump manifest (was BARE-only). Need to see HLS2
+          // master content — if it has #EXT-X-MEDIA AUDIO entries we can use
+          // setSelectTrack/hls.audioTrack (Phase B on HLS2) without restart.
+          dumpStreamManifest(play.url);
 
           if (useManifestProxy(actualPlayer)) {
             // Proxy is reachable — route the kinopub HLS4 master through it.
@@ -3887,8 +3421,6 @@
             return;
           }
 
-          LaunchTrace.ready(trace, play);
-          LaunchTrace.sent(trace, 'Lampa.Player.play', playlist.length);
           Lampa.Player.play(play);
           Lampa.Player.playlist(playlist);
           if (item.mark) item.mark();
@@ -4455,8 +3987,8 @@
           self.contextMenu({
             html: html,
             element: element,
-            onPlay: function (player, quality, delivery) {
-              if (current() && params.onEnter) params.onEnter(element, html, { player: player, quality: quality, delivery: delivery });
+            onPlay: function (player, quality) {
+              if (current() && params.onEnter) params.onEnter(element, html, { player: player, quality: quality });
             },
             onFile: function (call) {
               if (params.onContextMenu) params.onContextMenu(element, html, {}, call);
@@ -4526,12 +4058,6 @@
           if (Lampa.Platform.is('android')) menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Android', player: 'android' });
           if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
             menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Infuse', player: 'infuse' });
-            if (Lampa.Platform.is('apple_tv')) {
-              menu.push({ title: Lampa.Lang.translate('kp_infuse_vlc_source'),
-                subtitle: Lampa.Lang.translate('kp_infuse_vlc_hint'), infuseVlcSource: true });
-            }
-            menu.push({ title: Lampa.Lang.translate('kp_infuse_hls2_test'),
-              subtitle: Lampa.Lang.translate('kp_infuse_hls2_hint'), infuseHls2Test: true });
             if (infuseQualityOptions(params.element.kp && params.element.kp.files).length) {
               menu.push({ title: Lampa.Lang.translate('kp_infuse_quality'), infuseQuality: true });
             }
@@ -4557,14 +4083,6 @@
               if (a.clearallmark) params.onClearAllMark();
               if (a.timeclearall) params.onClearAllTime();
               Lampa.Controller.toggle(enabled);
-              if (a.infuseVlcSource) {
-                if (params.onPlay) params.onPlay('infuse', undefined, 'vlc-source');
-                return;
-              }
-              if (a.infuseHls2Test) {
-                if (params.onPlay) params.onPlay('infuse', undefined, 'hls2');
-                return;
-              }
               if (a.infuseQuality) {
                 Lampa.Select.show({
                   title: Lampa.Lang.translate('kp_infuse_quality'),
@@ -4955,39 +4473,6 @@
       field: { name: Lampa.Lang.translate('kp_set_subs'), description: Lampa.Lang.translate('kp_set_subs_descr') }
     });
 
-    if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
-      Lampa.SettingsApi.addParam({
-        component: 'kp',
-        param: { name: KEY_INFUSE_DELIVERY, type: 'select', "default": 'hls4', values: {
-          hls4: Lampa.Lang.translate('kp_infuse_delivery_hls4'),
-          http: Lampa.Lang.translate('kp_infuse_delivery_file')
-        } },
-        field: { name: Lampa.Lang.translate('kp_infuse_delivery'), description: Lampa.Lang.translate('kp_infuse_delivery_descr') }
-      });
-    }
-
-    Lampa.SettingsApi.addParam({
-      component: 'kp',
-      param: { name: 'kp_action_infuse_check', type: 'trigger', "default": false },
-      field: { name: Lampa.Lang.translate('kp_infuse_check'), description: Lampa.Lang.translate('kp_infuse_check_descr') },
-      onChange: showInfuseDiagnostic
-    });
-
-    if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
-      Lampa.SettingsApi.addParam({
-        component: 'kp',
-        param: { name: KEY_LAUNCH_TRACE, type: 'trigger', "default": false },
-        field: { name: Lampa.Lang.translate('kp_trace_enable'), description: Lampa.Lang.translate('kp_trace_descr') },
-        onChange: LaunchTrace.clear
-      });
-      Lampa.SettingsApi.addParam({
-        component: 'kp',
-        param: { name: 'kp_action_launch_trace', type: 'trigger', "default": false },
-        field: { name: Lampa.Lang.translate('kp_trace_report'), description: Lampa.Lang.translate('kp_trace_descr') },
-        onChange: LaunchTrace.show
-      });
-    }
-
     Lampa.SettingsApi.addParam({
       component: 'kp',
       param: { name: 'kp_action_logout', type: 'trigger', "default": false },
@@ -5053,27 +4538,28 @@
 
   function mountKinoPubCard(e) {
     var movie = e && e.data && e.data.movie;
-    if (!e) return;
+    if (!movie) return;
     var holder = e.body || (e.object && e.object.activity && e.object.activity.render());
     if (!holder || !holder.find) return;
     var start = e.link && e.link.items && e.link.items[0];
-    var previous = holder[0] && holder[0]._kpCardControls;
-    if (previous) previous.onDestroy();
+    if (start && start._kpCardControls && typeof start.unuse === 'function') {
+      if (start._kpCardControls.onDestroy) start._kpCardControls.onDestroy();
+      start.unuse(start._kpCardControls);
+      start._kpCardControls = null;
+    }
     holder.find('.view--kinopub, .kp-card-direct').remove();
-    if (!movie) return;
-    var alive = true, opening = false, observer = null, originalEmit = null, wrappedEmit = null;
+    var alive = true;
     function open() {
-      if (!alive || (originalEmit && opening)) return;
-      opening = !!originalEmit;
+      if (!alive) return;
       resetTemplates();
       Lampa.Component.add(COMPONENT_NAME, component);
-      try { launchActivity(movie); } catch (err) { opening = false; throw err; }
+      launchActivity(movie);
     }
     var source = kinoPubCardButton('view--online view--kinopub').on('hover:enter', open);
     var sources = holder.find('.buttons--container').first();
     var visible = holder.find('.full-start-new__buttons, .full-start__buttons').first();
     var watch = holder.find('.button--play').first();
-    var directWatch = Lampa.Platform.is('apple_tv') && (watch.length || sources.length);
+    var directWatch = Lampa.Platform.is('apple_tv') && watch.length;
     if (sources.length) {
       // Lampa 335 groups these direct children under Watch -> Sources.
       sources.append(source);
@@ -5089,51 +4575,16 @@
         // User requested Watch -> KinoPub, not an extra button or source menu.
         // Core rebinds hover:enter on each groupButtons (including return).
         // Replace only activation; preserve its focus and navigation handlers.
-        var currentWatch = holder.find('.button--play').first();
-        if (watch[0] !== currentWatch[0]) watch.off('.kpWatch');
-        watch = currentWatch;
         watch.off('hover:enter').on('hover:enter.kpWatch', open).removeClass('hide');
-        holder.find('.button--priority.view--kinopub, .kp-card-direct').remove();
-      };
-      var controls = {
-        onDestroy: function () {
-          if (!alive) return;
-          alive = false;
-          watch.off('.kpWatch');
-          source.off('hover:enter');
-          if (observer) observer.disconnect();
-          if (start && wrappedEmit && start.emit === wrappedEmit) start.emit = originalEmit;
-          if (start && typeof start.unuse === 'function') start.unuse(controls);
-          if (holder[0] && holder[0]._kpCardControls === controls) delete holder[0]._kpCardControls;
-          if (start && start._kpCardControls === controls) start._kpCardControls = null;
-        }
+        visible.find('.button--priority.view--kinopub').remove();
       };
       if (start && typeof start.use === 'function' && typeof start.unuse === 'function') {
-        start._kpCardControls = controls;
-        start.use(controls);
-        // Emit runs modules in registration order (including onlyEvent).
-        // A later module can undo an onGroupButtons binding. Reconcile after
-        // the entire instance event, without changing global core/prototypes.
-        if (typeof start.emit === 'function') {
-          originalEmit = start.emit;
-          wrappedEmit = function (name) {
-            if (name === 'destroy') controls.onDestroy();
-            var result = originalEmit.apply(this, arguments);
-            if (alive && (name === 'groupButtons' || name === 'priorityButton' || name === 'toggle')) {
-              if (name !== 'priorityButton') opening = false;
-              bindWatch();
-            }
-            return result;
-          };
-          start.emit = wrappedEmit;
-        }
-      }
-      if (holder[0]) holder[0]._kpCardControls = controls;
-      // Covers asynchronously replaced buttons in alternative card layouts.
-      // childList only: our handler/class updates cannot feed an observer loop.
-      if (window.MutationObserver && holder[0]) {
-        observer = new window.MutationObserver(bindWatch);
-        observer.observe(holder[0], {childList: true, subtree: true});
+        start._kpCardControls = {
+          onGroupButtons: bindWatch,
+          onPriorityButton: bindWatch,
+          onDestroy: function () { alive = false; watch.off('.kpWatch'); }
+        };
+        start.use(start._kpCardControls);
       }
       bindWatch();
     }
@@ -5163,60 +4614,9 @@
         en: 'Watch on kinopub',
         ua: 'Дивитися на kinopub'
       },
-      kp_no_exact_match: { ru: 'Точное совпадение в KinoPub не найдено. Другой фильм или сериал не выбран.', en: 'No exact KinoPub match. No different title was selected.', ua: 'Точного збігу в KinoPub не знайдено.' },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
-      kp_trace_enable: { ru: 'Запись этапов запуска', en: 'Record launch stages', ua: 'Запис етапів запуску' },
-      kp_trace_report: { ru: 'Отчёт последних запусков', en: 'Recent launch report', ua: 'Звіт останніх запусків' },
-      kp_trace_descr: { ru: 'Отключена по умолчанию. Последние 8 попыток только в памяти; без запросов к видео и отправки журнала. Выключение очищает запись.', en: 'Off by default. Last 8 attempts in memory only; no media requests or log upload. Disabling clears the record.', ua: 'Вимкнено типово. Останні 8 спроб лише в пам’яті; без запитів до відео й надсилання журналу. Вимкнення очищає запис.' },
-      kp_trace_empty: { ru: 'Включите запись этапов, затем выберите видео и плеер. После возврата откройте этот отчёт.', en: 'Enable stage recording, then select a video and player. Open this report after returning.', ua: 'Увімкніть запис етапів, виберіть відео та плеєр. Після повернення відкрийте звіт.' },
-      kp_trace_limits: { ru: 'Измеряется подготовка после выбора видео. Открытие приложения и первый кадр не измерены. Узел указан до перенаправлений. F и U сравнимы только в этом сеансе.', en: 'Measures preparation after selecting a video. App opening and first frame are not measured. Host precedes redirects. F and U are comparable only in this session.', ua: 'Вимірюється підготовка після вибору відео. Відкриття програми й перший кадр не виміряні. Вузол до перенаправлень. F та U порівнюються лише в цьому сеансі.' },
-      kp_trace_fields: { ru: 'item_ms: обновление материала; link_ms: получение ссылки; build_ms: сборка списка; prepare_ms: вся подготовка; dispatch_ms: от готовой ссылки до вызова передачи. null: этап отсутствовал/не завершён. submitted: вызов передачи, не воспроизведение. file: метка файла; input/output: метки точных адресов до/после подготовки. Разные U не доказывают разные файлы. entries: число видео в переданном объекте/схеме. Расширение не подтверждает контейнер, кодек, HDR или звук.', en: 'item_ms: item refresh; link_ms: link resolution; build_ms: playlist preparation; prepare_ms: total preparation; dispatch_ms: ready link to dispatch call. null: absent/incomplete stage. submitted is not playback. file: file label; input/output: exact URL labels before/after preparation. Different U labels do not prove different files. entries counts videos in the passed object/scheme. Extension does not prove container, codec, HDR or audio.', ua: 'item_ms: оновлення матеріалу; link_ms: отримання адреси; build_ms: список; prepare_ms: уся підготовка; dispatch_ms: від готової адреси до виклику передачі. null: етап відсутній/незавершений. submitted не означає відтворення. file: мітка файлу; input/output: мітки точних адрес до/після підготовки. Різні U не доводять різні файли. entries: кількість відео в переданому об’єкті/схемі. Розширення не підтверджує контейнер, кодек, HDR чи звук.' },
       kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
-      kp_infuse_delivery: { ru: 'Infuse: способ воспроизведения', en: 'Infuse: playback source', ua: 'Infuse: спосіб відтворення' },
-      kp_infuse_delivery_hls4: { ru: 'Поток HLS4 (.m3u8)', en: 'HLS4 stream (.m3u8)', ua: 'Потік HLS4 (.m3u8)' },
-      kp_infuse_delivery_file: { ru: 'Прямая ссылка на файл', en: 'Direct file link', ua: 'Пряме посилання на файл' },
-      kp_infuse_delivery_descr: { ru: 'Для обычного запуска Infuse. Если поток не воспроизводится, выберите прямую ссылку на файл.', en: 'For normal Infuse playback. If the stream cannot play, select the direct file link.', ua: 'Для звичайного запуску Infuse. Якщо потік не відтворюється, виберіть пряме посилання на файл.' },
-      kp_infuse_no_hls4: { ru: 'Не удалось получить поток HLS4 выбранного качества. Проверьте способ воспроизведения Infuse в настройках KinoPub.', en: 'Could not get HLS4 at the selected quality. Check the Infuse playback source in KinoPub settings.', ua: 'Не вдалося отримати HLS4 вибраної якості. Перевірте спосіб відтворення Infuse в налаштуваннях KinoPub.' },
-      kp_infuse_hls4_limits: { ru: 'Запрошен поток HLS4. Передаётся одно видео с позицией продолжения. Диагностика не читает манифест и сегменты. Воспроизведение, дорожки и перемотку нужно проверить в Infuse.', en: 'HLS4 requested. One video with resume position. Diagnostics do not read the manifest or segments. Check playback, tracks and seeking in Infuse.', ua: 'Запитано HLS4. Одне відео з позицією продовження. Діагностика не читає маніфест і сегменти. Перевірте відтворення, доріжки та перемотку в Infuse.' },
       kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
-      kp_infuse_vlc_source: { ru: 'Infuse: источник как у VLC', en: 'Infuse: use VLC source', ua: 'Infuse: джерело як у VLC' },
-      kp_infuse_vlc_hint: { ru: 'Разовый тест: готовый адрес VLC без обновления. Одно видео, без передачи позиции и внешних субтитров. Совместимость не подтверждена.', en: 'One-off test: loaded VLC URL, no refresh. One video, no position or external subtitles. Compatibility unconfirmed.', ua: 'Разова перевірка: готова адреса VLC без оновлення. Одне відео, без позиції та зовнішніх субтитрів. Сумісність не підтверджена.' },
-      kp_infuse_vlc_limits: { ru: 'Режим сравнения с VLC. Передан один готовый адрес без обновления, позиции, названия и внешних субтитров. Запросы к видео из диагностики не выполняются. Сравните метки F и U с VLC в том же сеансе. Скорость и воспроизведение не подтверждены.', en: 'VLC source comparison. One loaded URL, no refresh, position, filename or external subtitles. No diagnostic media requests. Compare F and U with VLC in this session. Playback and speed unconfirmed.', ua: 'Порівняння з VLC. Одна готова адреса без оновлення, позиції, назви та зовнішніх субтитрів. Без діагностичних запитів до відео. Порівняйте F та U з VLC в тому самому сеансі. Швидкість і відтворення не підтверджені.' },
-      kp_infuse_hls2_test: { ru: 'Infuse: проверить HLS2', en: 'Infuse: test HLS2', ua: 'Infuse: перевірити HLS2' },
-      kp_infuse_hls2_hint: { ru: 'Разовый тест одного видео. Совместимость не подтверждена.', en: 'One-off test of one video. Compatibility is unconfirmed.', ua: 'Разова перевірка одного відео. Сумісність не підтверджена.' },
-      kp_infuse_no_hls2: { ru: 'Не удалось получить HLS2 выбранного качества. Другой формат не подставлен.', en: 'Could not get HLS2 at the selected quality. No format fallback.', ua: 'Не вдалося отримати HLS2 вибраної якості. Формат не замінено.' },
-      kp_infuse_hls2_limits: {
-        ru: 'Разовый тест HLS2. Проверка диапазонов видеофайла здесь не выполняется. Манифест и сегменты не проверены. Скорость, воспроизведение, дорожки и перемотку нужно проверить в Infuse. Ссылки и токены скрыты.',
-        en: 'One-off HLS2 test. File range probes do not apply here. Manifest and segments are untested. Check speed, playback, tracks and seeking in Infuse. Links and tokens are hidden.',
-        ua: 'Разова перевірка HLS2. Перевірка діапазонів відеофайлу тут не виконується. Маніфест і сегменти не перевірені. Швидкість, відтворення, доріжки та перемотку перевірте в Infuse. Посилання й токени приховані.'
-      },
-      kp_infuse_check: { ru: 'Диагностика Infuse', en: 'Infuse diagnostics', ua: 'Діагностика Infuse' },
-      kp_infuse_check_descr: { ru: 'Проверить доступность последнего файла после ошибки. Показывает безопасный отчёт для снимка экрана.',
-        en: 'Check the last file after an error. Shows a safe report for a screenshot.', ua: 'Перевірити останній файл після помилки.' },
-      kp_infuse_check_empty: { ru: 'Сначала запустите фильм через Infuse в этой сессии Lampa.',
-        en: 'First launch a movie through Infuse in this Lampa session.', ua: 'Спочатку запустіть фільм через Infuse.' },
-      kp_infuse_prepare: { ru: 'Подготовка ссылки', en: 'Link preparation', ua: 'Підготовка посилання' },
-      kp_infuse_dispatch_time: { ru: 'Готовая ссылка → передача Infuse', en: 'Link ready → Infuse handoff', ua: 'Посилання готове → передача Infuse' },
-      kp_infuse_link_age: { ru: 'После передачи ссылки', en: 'Time since handoff', ua: 'Після передачі посилання' },
-      kp_infuse_check_running: { ru: 'Проверка диапазонов (до 30 секунд)…', en: 'Checking ranges (up to 30 seconds)…', ua: 'Перевірка діапазонів (до 30 секунд)…' },
-      kp_infuse_report: { ru: 'Сводка проверки', en: 'Probe summary', ua: 'Підсумок перевірки' },
-      'kp_infuse_range_headers-match': { ru: 'Заголовки диапазона совпали; тело не проверено', en: 'Range headers match; body untested', ua: 'Заголовки збігаються; тіло не перевірене' },
-      'kp_infuse_range_headers-partial': { ru: 'Заголовки части диапазона; покрытие не подтверждено', en: 'Partial range headers; coverage unconfirmed', ua: 'Заголовки частини діапазону' },
-      'kp_infuse_range_unknown-range': { ru: 'Недостаточно заголовков: отсутствие или CORS', en: 'Insufficient headers: absent or CORS-hidden', ua: 'Недостатньо заголовків: відсутні або CORS' },
-      'kp_infuse_range_range-ignored': { ru: 'Получен полный ответ 200 вместо диапазона', en: 'Full 200 response instead of a range', ua: 'Повна відповідь 200 замість діапазону' },
-      'kp_infuse_range_invalid-range': { ru: 'Диапазон или длина не соответствуют запросу', en: 'Range or length does not match the request', ua: 'Діапазон або довжина не відповідає запиту' },
-      'kp_infuse_range_size-changed': { ru: 'Размер изменился: прекратите проверку этой ссылки', en: 'Size changed: stop testing this link', ua: 'Розмір змінився: перевірку зупинено' },
-      'kp_infuse_range_unsatisfiable': { ru: '416: диапазон вне текущего размера', en: '416: range outside current size', ua: '416: діапазон поза поточним розміром' },
-      'kp_infuse_range_rejected-range': { ru: '416: отказ для допустимого диапазона', en: '416: satisfiable range rejected', ua: '416: відмова для допустимого діапазону' },
-      'kp_infuse_range_http-error': { ru: 'Ошибка HTTP, диапазон не подтверждён', en: 'HTTP error; range unconfirmed', ua: 'Помилка HTTP; діапазон не підтверджено' },
-      'kp_infuse_range_authorization': { ru: 'Доступ отклонён; истечение ссылки не доказано', en: 'Access denied; expiry not established', ua: 'Доступ відхилено; строк дії не встановлено' },
-      kp_infuse_probe_timeout: { ru: 'нет ответа за 6 секунд из Lampa', en: 'no response in 6 seconds from Lampa', ua: 'немає відповіді за 6 секунд із Lampa' },
-      'kp_infuse_probe_network-or-cors': { ru: 'сеть или запрет CORS в Lampa; результат для Infuse неизвестен',
-        en: 'network or Lampa CORS restriction; Infuse result unknown', ua: 'мережа або CORS у Lampa; результат для Infuse невідомий' },
-      kp_infuse_probe_unsupported: { ru: 'оболочка не поддерживает эту проверку', en: 'this shell cannot run the probe', ua: 'оболонка не підтримує перевірку' },
-      kp_infuse_check_limits: { ru: 'Только заголовки из Lampa; тело не читается. ? — заголовок отсутствует или скрыт CORS. Середина вычислена по размеру этого файла, не по старой ошибке. Без размера — только начало и конец. Промежуточные редиректы браузер скрывает. Скорость и маршрут Infuse не проверены. Ссылки и токены скрыты.',
-        en: 'Lampa headers only; body unread. ? means absent or CORS-hidden. Middle is based on this file size, not an earlier error. Without size: start and suffix only. Intermediate redirects are hidden by the browser. Speed and Infuse route untested. URLs and tokens hidden.',
-        ua: 'Лише заголовки з Lampa; тіло не читається. ? — відсутнє або приховане CORS. Середина за розміром цього файлу; без розміру — початок і кінець. Редиректи приховані браузером. Швидкість і маршрут Infuse не перевірені.' },
       kp_infuse_no_file: {
         ru: 'Не удалось получить прямой файл KinoPub в выбранном качестве. Повторите запуск или выберите доступное качество.',
         en: 'No fresh direct KinoPub file at the selected quality. Retry or choose an available quality.',
@@ -5600,7 +5000,7 @@
     setupKpPlayerPatch();
 
     // Probe availability only; compatible Tizen launches may use the
-    // reducer. Infuse uses the service's unmodified HLS4/file URL.
+    // reducer. Infuse always uses the service's direct-file URL.
     checkProxyAvailability();
 
     Logger.info('boot', 'kp.js initialized');
