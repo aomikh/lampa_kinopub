@@ -85,11 +85,16 @@ function runtime(options = {}) {
   const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
     'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates','probeInfuseResource','showInfuseDiagnostic',
-    'parseProbeRange','probeRangeVerdict','mountKinoPubCard','kinoPubCardButton','LaunchTrace'];
+    'parseProbeRange','probeRangeVerdict','mountKinoPubCard','kinoPubCardButton','LaunchTrace','addSettings'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;},getPendingVoice: function(){return pendingVoice;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
   return {api: sandbox.window.testAPI, storage, requests, mediaRequests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
     advance(ms) {clock += ms;},
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }
-module.exports = {runtime};
+// Existing direct-file regression scenarios opt into the retained file mode.
+// The plain runtime continues to use the actual production defaults.
+function fileInfuseRuntime(options = {}) {
+  return runtime({...options, storage: {kp_infuse_delivery:'http', ...options.storage}});
+}
+module.exports = {runtime, fileInfuseRuntime};

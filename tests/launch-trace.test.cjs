@@ -1,7 +1,8 @@
 'use strict';
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {runtime} = require('./runtime.cjs');
+// Retained direct-file mode; production-default HLS4 is covered in infuse-hls4.test.cjs.
+const {fileInfuseRuntime: runtime} = require('./runtime.cjs');
 
 const signed = 'https://video.example/private-fixture-secret/movie.mp4?sig=a+b%26&x=?=&nested=https%3A%2F%2Fprivate.example%2Ftoken';
 const file = {file:'/private-fixture-secret/movie.mp4', quality:'1080p', urls:{http:signed, hls2:'https://video.example/hls2/token/movie.mp4?sig=fixture'}};

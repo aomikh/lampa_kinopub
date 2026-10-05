@@ -1,7 +1,8 @@
 'use strict';
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {runtime} = require('./runtime.cjs');
+// Retained direct-file mode; production-default HLS4 is covered in infuse-hls4.test.cjs.
+const {fileInfuseRuntime: runtime} = require('./runtime.cjs');
 
 function episode() {
   const rt = runtime({storage: {kp_token: 'dummy-fixture', player: 'infuse', kp_max_quality: '2160'}});

@@ -1,7 +1,8 @@
 'use strict';
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {runtime} = require('./runtime.cjs');
+// Retained direct-file mode; production-default HLS4 is covered in infuse-hls4.test.cjs.
+const {fileInfuseRuntime: runtime} = require('./runtime.cjs');
 
 // Fictional paths/signatures only. An HLS resolver URL can end in .mp4.
 const hls = 'https://video.example/hls2/private-fixture/movie.mp4?sig=a%2Bb%2Fc%3D&key=a+b%25&loc=de&preload=1&x=?%26=';
