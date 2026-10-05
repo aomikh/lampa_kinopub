@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.12';
+  var PLUGIN_VERSION  = '1.0.73-mx.13';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -165,6 +165,7 @@
       // Older item metadata can omit file and gain it during the refresh.
       // Report the final selected file, not the incomplete pre-refresh hint.
       if (play._kpInfuse) {
+        trace.data.mode = play._kpInfuseVlcSource ? 'vlc-source' : 'standard';
         trace.data.file = label(play._kpFile, 'F');
         trace.data.quality = play._kpQuality;
         var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec(play._kpFile || '');
@@ -213,6 +214,7 @@
               '\nsession: ' + r.session + ' / #' + r.attempt + ' / ' + r.player +
               '\nKP: ' + value(r.kp_id) + ' / year: ' + value(r.year) + ' / S:' + value(r.season) + ' E:' + value(r.episode) +
               '\n' + value(r.quality) + 'p / ' + value(r.delivery) + ' / file: ' + value(r.file) +
+              (r.mode ? '\nmode: ' + r.mode : '') +
               '\ninput: ' + value(r.input) + ' / output: ' + value(r.output) +
               '\nhost: ' + value(r.resource && r.resource.host) + ' / extension_hint: ' + value(r.extension_hint) +
               '\nitem_ms: ' + value(r.item_ms) + ' / link_ms: ' + value(r.link_ms) + ' / build_ms: ' + value(r.build_ms) +
@@ -394,6 +396,14 @@
   // Infuse 8.4.7+: repeated url/position/filename/sub groups, once-encoded.
   // No guessed Lampa MX callback scheme and no undocumented playlist=.
   function buildInfuseUrl(play) {
+    // Explicit comparison only: same single URL payload as the tvOS VLC
+    // adapter, with Infuse's documented action (play, not VLC's stream).
+    // Do not add a position, metadata, subtitles, or an episode playlist.
+    if (play._kpInfuseVlcSource) {
+      if (!play._kpInfuse || !mediaUrl(play.url)) return null;
+      var single = 'infuse://x-callback-url/play?url=' + encodeURIComponent(play.url);
+      return single.length <= 65536 ? single : null;
+    }
     // Experimental HLS2 is one selected video, never a mixed/season playlist.
     var list = !play._kpInfuseHls2Test && Array.isArray(play.playlist) && play.playlist.length ? play.playlist : [play];
     var start = list.indexOf(play);
@@ -428,16 +438,17 @@
     currentVoiceLabel = '';
     // Same scheme dispatch used by Lampa's external adapter. Its current
     // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
+    var delivery = play._kpInfuseVlcSource ? play._kpDelivery : play._kpInfuseHls2Test ? 'hls2-test' : 'http';
     try {
       lastInfuseAttempt = { url: play.url, at: Date.now(), quality: play._kpQuality,
-        delivery: play._kpInfuseHls2Test ? 'hls2-test' : 'http',
+        delivery: delivery, mode: play._kpInfuseVlcSource ? 'vlc-source' : 'standard',
         prepareMs: play._kpPrepareMs,
         handoffMs: play._kpLinkReadyAt == null ? null : Math.max(0, Date.now() - play._kpLinkReadyAt) };
       LaunchTrace.sent(trace, 'window.location.assign', url.split('&url=').length);
       window.location.assign(url);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
-        resource: resourceInfo(play.url), deliveryField: play._kpInfuseHls2Test ? 'hls2-test' : 'http', quality: play._kpQuality,
-        entries: play._kpInfuseHls2Test ? 1 : (play.playlist || [play]).length, callbacks: false
+        resource: resourceInfo(play.url), deliveryField: delivery, quality: play._kpQuality,
+        entries: play._kpInfuseHls2Test || play._kpInfuseVlcSource ? 1 : (play.playlist || [play]).length, callbacks: false
       });
       return true;
     } catch (e) {
@@ -586,17 +597,18 @@
     var body = $('<div></div>').css({ 'white-space': 'pre-wrap', 'font-size': '0.8em' });
     var summary = 'KinoPub ' + PLUGIN_VERSION + ' / Lampa ' + (Lampa.Manifest.app_digital || '?') +
       '\n' + resourceInfo(attempt.url).host + ' / ' + (attempt.quality || '?') + 'p' +
-      '\nDelivery: ' + attempt.delivery +
+      '\nDelivery: ' + attempt.delivery + ' / mode: ' + attempt.mode +
       '\n' + Lampa.Lang.translate('kp_infuse_prepare') + ': ' + (attempt.prepareMs == null ? '?' : attempt.prepareMs) + ' ms' +
       '\n' + Lampa.Lang.translate('kp_infuse_dispatch_time') + ': ' + (attempt.handoffMs == null ? '?' : attempt.handoffMs) + ' ms' +
       '\n' + Lampa.Lang.translate('kp_infuse_link_age') + ': ' + Math.floor((Date.now() - attempt.at) / 1000) + ' s';
     var hlsTest = attempt.delivery === 'hls2-test';
-    body.text(summary + '\n' + Lampa.Lang.translate(hlsTest ? 'kp_infuse_hls2_limits' : 'kp_infuse_check_running'));
+    var vlcSource = attempt.mode === 'vlc-source';
+    body.text(summary + '\n' + Lampa.Lang.translate(vlcSource ? 'kp_infuse_vlc_limits' : hlsTest ? 'kp_infuse_hls2_limits' : 'kp_infuse_check_running'));
     var stop = function () {};
     Lampa.Modal.open({ title: Lampa.Lang.translate('kp_infuse_check'), html: body, size: 'medium',
       onBack: function () { stop(); Lampa.Modal.close(); Lampa.Controller.toggle(enabled); } });
     // File Range/size diagnostics do not describe an HLS manifest or segments.
-    if (hlsTest) return;
+    if (hlsTest || vlcSource) return;
     stop = probeInfuseResource(attempt.url, function (results) {
       Lampa.Modal.close();
       var limits = Lampa.Lang.translate('kp_infuse_check_limits');
@@ -3003,6 +3015,27 @@
       infuseNetwork.clear();
     }
 
+    function launchInfuseVlcSource(item, targetQuality) {
+      // Match the already-loaded VLC resource, not the HLS2 resolver test.
+      // An expired URL must fail in the client, not silently become a new file.
+      if (!Lampa.Platform.is('apple_tv') || destroyed || !raw || !raw.id) return;
+      cancelInfuseLaunch();
+      var started = Date.now();
+      var trace = LaunchTrace.start('infuse', item, raw);
+      var stream = selectPlaybackStream(item, 'vlc', targetQuality);
+      if (!stream || !mediaUrl(stream.url)) {
+        LaunchTrace.fail(trace, 'no-resource');
+        Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
+        return;
+      }
+      LaunchTrace.selected(trace, stream);
+      var play = { url: stream.url, _kpInfuse: true, _kpInfuseVlcSource: true,
+        _kpFile: stream.file, _kpQuality: stream.currentQuality, _kpDelivery: stream.delivery,
+        _kpPrepareMs: Date.now() - started, _kpLinkReadyAt: Date.now() };
+      LaunchTrace.ready(trace, play);
+      dispatchInfuse(play, trace);
+    }
+
     function launchInfuse(item, items, targetQuality, delivery) {
       if (infuseLaunching || !raw || !raw.id) return;
       var hlsTest = delivery === 'hls2' && (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple'));
@@ -3393,7 +3426,9 @@
       return null;
     }
 
-    function toPlayElement(element, actualPlayer, targetQuality, delivery, trace) {
+    // Shared by actual VLC and the opt-in Infuse comparison; avoid two
+    // subtly different selections for the same row/quality/format settings.
+    function selectPlaybackStream(element, actualPlayer, targetQuality, delivery) {
       actualPlayer = detectActualPlayer(actualPlayer);
       var delegated = isAppleDelegatedPlayer(actualPlayer);
       var hlsTest = actualPlayer === 'infuse' && delivery === 'hls2';
@@ -3406,6 +3441,15 @@
       if (!stream) return null;
       if (delegated && (stream.currentQuality > maxQuality() ||
           (target && stream.currentQuality !== parseInt(String(target).replace(/[^0-9]/g, ''), 10)))) return null;
+      return stream;
+    }
+
+    function toPlayElement(element, actualPlayer, targetQuality, delivery, trace) {
+      actualPlayer = detectActualPlayer(actualPlayer);
+      var delegated = isAppleDelegatedPlayer(actualPlayer);
+      var hlsTest = actualPlayer === 'infuse' && delivery === 'hls2';
+      var stream = selectPlaybackStream(element, actualPlayer, targetQuality, delivery);
+      if (!stream) return null;
       LaunchTrace.selected(trace, stream);
 
       // Title formatting:
@@ -3620,6 +3664,9 @@
         similars: waitSimilars,
         onEnter: function (item, html, options) {
           var actualPlayer = detectActualPlayer(options && options.player);
+          if (actualPlayer === 'infuse' && options && options.delivery === 'vlc-source') {
+            launchInfuseVlcSource(item, options.quality); return;
+          }
           if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality, options && options.delivery); return; }
           cancelInfuseLaunch();
           var trace = LaunchTrace.start(actualPlayer, item, raw);
@@ -4437,6 +4484,10 @@
           if (Lampa.Platform.is('android')) menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Android', player: 'android' });
           if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
             menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Infuse', player: 'infuse' });
+            if (Lampa.Platform.is('apple_tv')) {
+              menu.push({ title: Lampa.Lang.translate('kp_infuse_vlc_source'),
+                subtitle: Lampa.Lang.translate('kp_infuse_vlc_hint'), infuseVlcSource: true });
+            }
             menu.push({ title: Lampa.Lang.translate('kp_infuse_hls2_test'),
               subtitle: Lampa.Lang.translate('kp_infuse_hls2_hint'), infuseHls2Test: true });
             if (infuseQualityOptions(params.element.kp && params.element.kp.files).length) {
@@ -4464,6 +4515,10 @@
               if (a.clearallmark) params.onClearAllMark();
               if (a.timeclearall) params.onClearAllTime();
               Lampa.Controller.toggle(enabled);
+              if (a.infuseVlcSource) {
+                if (params.onPlay) params.onPlay('infuse', undefined, 'vlc-source');
+                return;
+              }
               if (a.infuseHls2Test) {
                 if (params.onPlay) params.onPlay('infuse', undefined, 'hls2');
                 return;
@@ -5065,6 +5120,9 @@
       kp_trace_fields: { ru: 'item_ms: обновление материала; link_ms: получение ссылки; build_ms: сборка списка; prepare_ms: вся подготовка; dispatch_ms: от готовой ссылки до вызова передачи. null: этап отсутствовал/не завершён. submitted: вызов передачи, не воспроизведение. file: метка файла; input/output: метки точных адресов до/после подготовки. Разные U не доказывают разные файлы. entries: число видео в переданном объекте/схеме. Расширение не подтверждает контейнер, кодек, HDR или звук.', en: 'item_ms: item refresh; link_ms: link resolution; build_ms: playlist preparation; prepare_ms: total preparation; dispatch_ms: ready link to dispatch call. null: absent/incomplete stage. submitted is not playback. file: file label; input/output: exact URL labels before/after preparation. Different U labels do not prove different files. entries counts videos in the passed object/scheme. Extension does not prove container, codec, HDR or audio.', ua: 'item_ms: оновлення матеріалу; link_ms: отримання адреси; build_ms: список; prepare_ms: уся підготовка; dispatch_ms: від готової адреси до виклику передачі. null: етап відсутній/незавершений. submitted не означає відтворення. file: мітка файлу; input/output: мітки точних адрес до/після підготовки. Різні U не доводять різні файли. entries: кількість відео в переданому об’єкті/схемі. Розширення не підтверджує контейнер, кодек, HDR чи звук.' },
       kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
       kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
+      kp_infuse_vlc_source: { ru: 'Infuse: источник как у VLC', en: 'Infuse: use VLC source', ua: 'Infuse: джерело як у VLC' },
+      kp_infuse_vlc_hint: { ru: 'Разовый тест: готовый адрес VLC без обновления. Одно видео, без передачи позиции и внешних субтитров. Совместимость не подтверждена.', en: 'One-off test: loaded VLC URL, no refresh. One video, no position or external subtitles. Compatibility unconfirmed.', ua: 'Разова перевірка: готова адреса VLC без оновлення. Одне відео, без позиції та зовнішніх субтитрів. Сумісність не підтверджена.' },
+      kp_infuse_vlc_limits: { ru: 'Режим сравнения с VLC. Передан один готовый адрес без обновления, позиции, названия и внешних субтитров. Запросы к видео из диагностики не выполняются. Сравните метки F и U с VLC в том же сеансе. Скорость и воспроизведение не подтверждены.', en: 'VLC source comparison. One loaded URL, no refresh, position, filename or external subtitles. No diagnostic media requests. Compare F and U with VLC in this session. Playback and speed unconfirmed.', ua: 'Порівняння з VLC. Одна готова адреса без оновлення, позиції, назви та зовнішніх субтитрів. Без діагностичних запитів до відео. Порівняйте F та U з VLC в тому самому сеансі. Швидкість і відтворення не підтверджені.' },
       kp_infuse_hls2_test: { ru: 'Infuse: проверить HLS2', en: 'Infuse: test HLS2', ua: 'Infuse: перевірити HLS2' },
       kp_infuse_hls2_hint: { ru: 'Разовый тест одного видео. Совместимость не подтверждена.', en: 'One-off test of one video. Compatibility is unconfirmed.', ua: 'Разова перевірка одного відео. Сумісність не підтверджена.' },
       kp_infuse_no_hls2: { ru: 'Не удалось получить HLS2 выбранного качества. Другой формат не подставлен.', en: 'Could not get HLS2 at the selected quality. No format fallback.', ua: 'Не вдалося отримати HLS2 вибраної якості. Формат не замінено.' },
