@@ -1,41 +1,42 @@
 {
-  "version": "1.0.73-mx.16",
-  "verified_at_utc": "2026-10-05T16:15:35.880431+00:00",
+  "version": "1.0.73-mx.17",
+  "verified_at_utc": "2026-10-06T15:03:31.738Z",
   "responses": [
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js",
       "status": 200,
-      "bytes": 222834,
-      "version": "1.0.73-mx.16",
-      "sha256": "d8520b5340827cc6a3c2b73e1295e23ec64a2663080772307d45773cac848675"
-    },
-    {
-      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.15",
-      "status": 200,
-      "bytes": 222834,
-      "version": "1.0.73-mx.16",
-      "sha256": "d8520b5340827cc6a3c2b73e1295e23ec64a2663080772307d45773cac848675"
+      "bytes": 225380,
+      "version": "1.0.73-mx.17",
+      "sha256": "801e94e483ea89dbd4fc1f24e729ebec37a4ae7c090480ffc2198890b343fa40"
     },
     {
       "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.16",
       "status": 200,
-      "bytes": 222834,
-      "version": "1.0.73-mx.16",
-      "sha256": "d8520b5340827cc6a3c2b73e1295e23ec64a2663080772307d45773cac848675"
+      "bytes": 225380,
+      "version": "1.0.73-mx.17",
+      "sha256": "801e94e483ea89dbd4fc1f24e729ebec37a4ae7c090480ffc2198890b343fa40"
+    },
+    {
+      "url": "https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.17",
+      "status": 200,
+      "bytes": 225380,
+      "version": "1.0.73-mx.17",
+      "sha256": "801e94e483ea89dbd4fc1f24e729ebec37a4ae7c090480ffc2198890b343fa40"
     }
   ],
-  "runtime_commit": "8a4ebed63b087c2ab897bb6313e2ec4da188011a",
+  "runtime_commit": "a359cc5b68e11ee67a0911e62458a86b61ecd41d",
   "workflow": {
-    "id": 37339372332,
-    "sha": "8a4ebed63b087c2ab897bb6313e2ec4da188011a",
+    "id": 37483861986,
+    "sha": "a359cc5b68e11ee67a0911e62458a86b61ecd41d",
     "status": "completed",
     "conclusion": "success",
-    "url": "https://github.com/aomikh/lampa_kinopub/actions/runs/37339372332"
+    "url": "https://github.com/aomikh/lampa_kinopub/actions/runs/37483861986"
   },
-  "sha256": "d8520b5340827cc6a3c2b73e1295e23ec64a2663080772307d45773cac848675",
-  "bytes": 222834,
+  "sha256": "801e94e483ea89dbd4fc1f24e729ebec37a4ae7c090480ffc2198890b343fa40",
+  "bytes": 225380,
   "all_urls_match_local": true,
-  "device_mx16_tested": false,
-  "previous_publication_evidence": "https://github.com/aomikh/lampa_kinopub/blob/38da02c89ed636c3462ec8d6c2956f8f039bb481/audit/publication.json",
-  "scope": "User-requested rollback of mx.11–mx.15 and removal of Infuse diagnostic/experimental menu actions"
+  "device_playback_tested": false,
+  "speed_improvement_on_device_verified": false,
+  "previous_publication_evidence": "https://github.com/aomikh/lampa_kinopub/blob/60fd4af99d25b57b2734ece9f80f7c217cd0c390/audit/publication.json",
+  "scope": "User-authorized direct publication to main of the prepared Infuse episode request overlap; preserves mx.16 rollback"
 }

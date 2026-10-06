@@ -20,6 +20,7 @@
   "speed_improvement_on_device_verified": false,
   "settings_reset": false,
   "shadowrocket_changed": false,
-  "publication_status": "authorized for main; deployment and byte verification pending",
-  "scope": "Overlap fresh episode metadata and selected-file resolution; verify file identity before Infuse handoff; defer concurrent OAuth refresh; preserve mx.16 rollback and existing settings"
+  "publication_status": "published and byte-verified; see audit/publication.json",
+  "scope": "Overlap fresh episode metadata and selected-file resolution; verify file identity before Infuse handoff; defer concurrent OAuth refresh; preserve mx.16 rollback and existing settings",
+  "runtime_commit": "a359cc5b68e11ee67a0911e62458a86b61ecd41d"
 }
