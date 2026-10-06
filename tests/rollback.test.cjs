@@ -7,7 +7,8 @@ const {runtime}=require('./runtime.cjs');
 
 test('rollback removes Infuse experiments, diagnostic requests and launch tracing from shipped code',()=>{
   const code=fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
-  assert.match(code,/PLUGIN_VERSION\s*=\s*'1\.0\.73-mx\.17'/);
+  assert.match(code,/PLUGIN_VERSION\s*=\s*'1\.0\.73-mx\.18'/);
+  assert.doesNotMatch(code,/infuseFileNetwork|earlyFile|deferAuthRefresh/);
   assert.doesNotMatch(code,/LaunchTrace|lastInfuseAttempt|probeInfuseResource|showInfuseDiagnostic|infuseHls2Test|InfuseVlcSource|kp_launch_trace|kp_infuse_delivery|kp_action_infuse_check|kp_trace_/);
 });
 for(const platform of ['apple_tv','apple','tizen']) test(platform+': settings keep ordinary controls without Infuse diagnostics',()=>{

@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.17';
+  var PLUGIN_VERSION  = '1.0.73-mx.18';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -735,12 +735,10 @@
       item: function (network, id, ok, err) {
         api(network, '/items/' + id, null, ok, err);
       },
-      mediaVideoLink: function (network, file, ok, err, deferAuthRefresh) {
+      mediaVideoLink: function (network, file, ok, err) {
         // Official exact-file resolver. Do not derive a URL from a HLS path
         // or reuse a cached item link when this request fails.
-        // An overlapping episode request lets the item request refresh auth.
-        // A deferred 401 is retried normally after the item has been verified.
-        api(network, '/items/media-video-link', { file: file, type: 'http' }, ok, err, deferAuthRefresh);
+        api(network, '/items/media-video-link', { file: file, type: 'http' }, ok, err);
       },
       profile: function (network, ok, err) {
         api(network, '/user', null, ok, err);
@@ -2451,7 +2449,6 @@
   function kpapi(component, _object) {
     var network = new Lampa.Reguest();
     var infuseNetwork = new Lampa.Reguest();
-    var infuseFileNetwork = new Lampa.Reguest();
     var infuseGeneration = 0;
     var infuseLaunching = false;
     var infuseTimer = null;
@@ -2659,7 +2656,6 @@
       infuseLaunching = false;
       clearTimeout(infuseTimer);
       infuseNetwork.clear();
-      infuseFileNetwork.clear();
     }
 
     function launchInfuse(item, items, targetQuality) {
@@ -2668,14 +2664,11 @@
       var generation = ++infuseGeneration;
       var kpId = raw.id;
       var stage = 'item';
-      var earlyFile = null;
       Logger.info('infuse', 'refreshing KinoPub links', { season: item.season, episode: item.episode });
       function fail(reason, status) {
         if (generation !== infuseGeneration || !infuseLaunching) return;
         infuseLaunching = false;
         clearTimeout(infuseTimer);
-        infuseNetwork.clear();
-        infuseFileNetwork.clear();
         Logger.warn('infuse', reason, { stage: stage, status: status });
         var code = stage === 'file' ? 'KP-I2' : 'KP-I1';
         Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file') + ' [' + code +
@@ -2700,36 +2693,13 @@
           dispatchInfuse(play);
         }
         if (play._kpFile) {
-          if (earlyFile && earlyFile.file === play._kpFile) {
-            armTimeout();
-            earlyFile.deliver = function () {
-              if (generation !== infuseGeneration || !infuseLaunching) return;
-              if (earlyFile.status === 401) {
-                // Only now may this request refresh auth. The item request
-                // has finished, so two refresh-token grants cannot race.
-                earlyFile = null;
-                submit(play);
-              } else if (earlyFile.failed) fail('direct file resolution failed', earlyFile.status);
-              else handoff(earlyFile.url);
-            };
-            if (earlyFile.done) earlyFile.deliver();
-            return;
-          }
-          // A changed file/quality in fresh metadata invalidates the early
-          // result, including errors. Resolve only the verified selection.
-          infuseFileNetwork.clear();
-          earlyFile = null;
           Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
           armTimeout();
           KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
             if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
             handoff(result && result.url);
           }, function (xhr) { fail('direct file resolution failed', xhr && xhr.status); });
-        } else {
-          infuseFileNetwork.clear();
-          earlyFile = null;
-          handoff(play.url);
-        }
+        } else handoff(play.url);
       }
       // The loaded card already identifies the selected movie file. Resolve
       // that exact file once, without fetching the same item a second time.
@@ -2737,26 +2707,6 @@
       if (item.kp.kind === 'movie') {
         var selectedMovie = toPlayElement(item, 'infuse', targetQuality);
         if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
-      }
-      // Refresh the episode list and resolve just the selected file together.
-      // Never dispatch until fresh metadata confirms the same file identity.
-      if (item.kp.kind === 'episode') {
-        var selectedEpisode = toPlayElement(item, 'infuse', targetQuality);
-        if (selectedEpisode && selectedEpisode._kpFile) {
-          var pendingFile = earlyFile = { file: selectedEpisode._kpFile, done: false };
-          var finishEarly = function (result, xhr) {
-            if (generation !== infuseGeneration || !infuseLaunching || pendingFile !== earlyFile || pendingFile.done) return;
-            if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
-            pendingFile.done = true;
-            pendingFile.url = result && result.url;
-            pendingFile.failed = !!xhr;
-            pendingFile.status = xhr && xhr.status;
-            if (pendingFile.deliver) pendingFile.deliver();
-          };
-          KP.mediaVideoLink(infuseFileNetwork, pendingFile.file, function (result) {
-            finishEarly(result);
-          }, function (xhr) { finishEarly(null, xhr || {}); }, true);
-        }
       }
       armTimeout();
       KP.item(infuseNetwork, kpId, function (json) {
