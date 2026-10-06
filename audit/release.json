@@ -19,9 +19,10 @@
   "speed_improvement_on_device_verified": false,
   "settings_reset": false,
   "shadowrocket_changed": false,
-  "publication_status": "rollback prepared after user-reported mx.17 regression; deployment and byte verification pending",
+  "publication_status": "published and byte-verified; see audit/publication.json",
   "scope": "Undo mx.17 concurrent episode requests; restore mx.16 runtime byte-for-byte except version; no claimed speed or playback fix",
   "rollback_target": "60fd4af99d25b57b2734ece9f80f7c217cd0c390",
   "runtime_matches_mx16_except_version": true,
-  "previous_device_report": "mx.17: user reports longer wait and no video; content type and failure stage unknown"
+  "previous_device_report": "mx.17: user reports longer wait and no video; content type and failure stage unknown",
+  "runtime_commit": "56fa8802e71ee01062e43291c9048cbf367c6d73"
 }
