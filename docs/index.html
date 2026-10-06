@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KinoPub 1.0.73-mx.16 для Lampa MX</title>
+<title>KinoPub 1.0.73-mx.17 для Lampa MX</title>
 <style>
   :root { color-scheme: dark; }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -24,9 +24,9 @@
 </head>
 <body>
 
-<h1>KinoPub 1.0.73-mx.16 для Lampa MX</h1>
-<p>По запросу пользователя восстановлено поведение до mx.11 и убраны проверки Infuse: диагностика, запись этапов, отчёты запусков, тест HLS2 и режим «источник как у VLC». Обычный Infuse снова использует файловую ссылку; выбор качества сохранён.</p>
-<p>Изменения mx.11–mx.15 отменены, включая изменение аудиоменю mx.14. Авторизация и пользовательские настройки принудительно не сбрасываются. Это откат, не подтверждённое исправление скорости или остановок. <a href="https://github.com/aomikh/lampa_kinopub/blob/main/audit/rollback-mx16.md">Состав отката</a>.</p>
+<h1>KinoPub 1.0.73-mx.17 для Lampa MX</h1>
+<p>Для серии с известным файловым идентификатором свежая карточка и ссылка выбранного файла запрашиваются одновременно. Передача в Infuse ждёт оба результата и сверку файла. Путь фильма с известным файлом не менялся; выбор качества сохранён.</p>
+<p>Откат mx.16 сохранён: диагностика и экспериментальные режимы Infuse не возвращены. Авторизация и настройки принудительно не сбрасываются. Ожидается сокращение последовательного ожидания API, но скорость первого кадра и устойчивость на Apple TV пока не измерены. <a href="https://github.com/aomikh/lampa_kinopub/blob/main/audit/infuse-episode-preparation-20261006.md">Изменение и проверки</a>.</p>
 
 <p>
   Плагин-источник видео <strong>kinopub</strong> для приложения
@@ -37,14 +37,14 @@
 
 <div class="note">
   Прямая ссылка для добавления в Lampa: <br>
-  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.16</code>
+  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.17</code>
 </div>
 
 <h2>Установка</h2>
 <ol>
   <li>В Lampa откройте <em>Настройки → Расширения</em>.</li>
   <li>Замените адрес существующего KinoPub. При первой установке нажмите <em>Добавить плагин</em>. Оставьте только одну активную копию.</li>
-  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.16</code></li>
+  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.17</code></li>
   <li>Сохраните, полностью закройте Lampa MX через переключатель приложений Apple TV и откройте снова.</li>
   <li>На карточке фильма нажмите <strong>Смотреть</strong>. KinoPub открывается сразу внутри Lampa. Затем запустите выбранный материал через Infuse.</li>
 </ol>
