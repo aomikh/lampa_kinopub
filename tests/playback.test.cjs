@@ -148,7 +148,7 @@ test('movie resolves the exact selected file with type=http before opening Infus
   assert.equal(rt.launches.length,0);
   const resolve = rt.requests.at(-1), params = new URL(resolve.url).searchParams;
   assert.equal(new URL(resolve.url).pathname,'/v1/items/media-video-link');
-  assert.equal(params.get('file'),'/private-fixture/file-720.mp4');
+  assert.equal(params.get('file'),'/private-fixture/file-1080.mp4');
   assert.equal(params.get('type'),'http');
   resolve.ok({url:signed+'&fresh=exact'});
   assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&fresh=exact');
@@ -221,20 +221,20 @@ test('invalid selected resource cannot skip ahead to another episode', () => {
   assert.equal(rt.api.buildInfuseUrl(play),null);
 });
 
-test('loaded movie with a file reference needs only one request before Infuse dispatch', () => {
+test('loaded movie refreshes dedicated-device metadata before resolving its selected file', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
   const {src,view,item}=movieWithFile(rt);
   // Reopen using metadata which contains actual file references from the start.
   src.find(22);rt.requests.at(-1).ok({item});
   view.items[0].quality='720p';
   const before=rt.requests.length;
-  view.options.onEnter(view.items[0]);
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});
   const resolve=rt.requests.at(-1), u=new URL(resolve.url);
   assert.equal(u.pathname,'/v1/items/media-video-link');
-  assert.equal(u.searchParams.get('file'),'/private-fixture/file-720.mp4');
+  assert.equal(u.searchParams.get('file'),'/private-fixture/file-1080.mp4');
   assert.equal(rt.launches.length,0);
   resolve.ok({url:signed});
-  assert.equal(rt.requests.length-before,1);
+  assert.equal(rt.requests.length-before,2);
   assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed);
   assert.equal(rt.internal.length,0);
 });
@@ -247,12 +247,12 @@ test('one-off Infuse maximum is selected from direct files, not the HLS card lab
   src.find(22);rt.requests.at(-1).ok({item});
   assert.equal(view.items[0].quality.trim(),'1080p'); // Label prepared for saved internal player.
   view.items[0].timeline={time:421};const before=rt.requests.length;
-  view.options.onEnter(view.items[0],{}, {player:'infuse'});
+  view.options.onEnter(view.items[0],{}, {player:'infuse'});rt.requests.at(-1).ok({item});
   assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/fixture-selected-2160.mp4');
   rt.requests.at(-1).ok({url:signed});
   const params=new URL(rt.launches[0]).searchParams;
   assert.equal(params.get('url'),signed);assert.equal(params.get('position'),'421');
-  assert.equal(rt.requests.length-before,1);assert.equal(rt.internal.length,0);
+  assert.equal(rt.requests.length-before,2);assert.equal(rt.internal.length,0);
   assert.equal(rt.storage.kp_max_quality,'2160');assert.equal(rt.storage.player,'inner');
 });
 
@@ -262,52 +262,52 @@ test('a file-reference-only higher quality is not masked by the lower direct URL
   item.videos[0].files=[{quality:'2160p',file:'/fixture-2160.mp4'},
     {quality:'1080p',file:'/fixture-1080.mp4',urls:{http:signed}}];
   src.find(22);rt.requests.at(-1).ok({item});
-  view.options.onEnter(view.items[0]);
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});
   assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/fixture-2160.mp4');
 });
 
-test('one-off Infuse quality resolves only that file; next ordinary launch keeps the original quality', () => {
+test('obsolete one-off Infuse quality cannot lower either launch', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'inner'}});
   const {src,view,item}=movieWithFile(rt);
   src.find(22);rt.requests.at(-1).ok({item});
   const before=rt.requests.length;
-  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
-  assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/private-fixture/file-720.mp4');
-  rt.requests.at(-1).ok({url:signed+'&quality=720'});
-  assert.equal(rt.requests.length-before,1);
-  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&quality=720');
+  view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});rt.requests.at(-1).ok({item});
+  assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/private-fixture/file-1080.mp4');
+  rt.requests.at(-1).ok({url:signed+'&quality=1080'});
+  assert.equal(rt.requests.length-before,2);
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&quality=1080');
   assert.equal(rt.storage.kp_max_quality,'1080');assert.equal(rt.storage.player,'inner');
   assert.equal(view.items[0].quality.trim(),'1080p');
-  view.options.onEnter(view.items[0],{}, {player:'infuse'});
+  view.options.onEnter(view.items[0],{}, {player:'infuse'});rt.requests.at(-1).ok({item});
   assert.equal(new URL(rt.requests.at(-1).url).searchParams.get('file'),'/private-fixture/file-1080.mp4');
   assert.equal(rt.internal.length,0);
 });
-test('URL-only movie refresh respects explicit Infuse quality without modifying signed links', () => {
+test('URL-only movie refresh chooses maximum quality without modifying signed links', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
   const {view,item}=source(rt);
   const fresh=JSON.parse(JSON.stringify(item));fresh.videos[0].files[1].url.http=signed+'&q=720';
   view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
   rt.requests.at(-1).ok({item:fresh});
-  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed+'&q=720');
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed);
 });
-test('explicit Infuse quality applies to the whole playlist and stops before a missing quality', () => {
+test('every Infuse playlist episode uses its own maximum, ignoring old quality options', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
   const {view,item}=source(rt,true);
   view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
   rt.requests.at(-1).ok({item});
-  assert.deepEqual(new URL(rt.launches[0]).searchParams.getAll('url'),[files[1].url.http,files[1].url.http]);
+  assert.deepEqual(new URL(rt.launches[0]).searchParams.getAll('url'),[signed,signed]);
   const fresh=JSON.parse(JSON.stringify(item));fresh.seasons[0].episodes[1].files=[files[0]];
   view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
   rt.requests.at(-1).ok({item:fresh});
-  assert.deepEqual(new URL(rt.launches[1]).searchParams.getAll('url'),[files[1].url.http]);
+  assert.deepEqual(new URL(rt.launches[1]).searchParams.getAll('url'),[signed,signed]);
 });
-test('disappearing explicit quality fails instead of silently substituting a heavier file', () => {
+test('missing obsolete lower quality does not prevent automatic maximum quality', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
   const {view,item}=source(rt);
   const fresh=JSON.parse(JSON.stringify(item));fresh.videos[0].files=[files[0]];
   view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});
   rt.requests.at(-1).ok({item:fresh});rt.tickAll();
-  assert.equal(rt.launches.length,0);assert.match(rt.notices.at(-1),/KP-I2/);
+  assert.equal(new URL(rt.launches[0]).searchParams.get('url'),signed);
 });
 test('quality selection preserves requested subtitles regardless of source-file embed metadata', () => {
   for (const external of [false,true]) {
@@ -316,7 +316,7 @@ test('quality selection preserves requested subtitles regardless of source-file 
     item.videos[0].subtitles=[{embed:true,url:'https://subs.example/embedded-copy.srt',lang:'rus'}];
     if(external) item.videos[0].subtitles.push({embed:false,url:'https://subs.example/external.srt',lang:'eng'});
     src.find(22);rt.requests.at(-1).ok({item});
-    view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});rt.requests.at(-1).ok({url:signed});
+    view.options.onEnter(view.items[0],{}, {player:'infuse',quality:'720p'});rt.requests.at(-1).ok({item});rt.requests.at(-1).ok({url:signed});
     const subs=new URL(rt.launches[0]).searchParams.getAll('sub');
     assert.deepEqual(subs,['https://subs.example/embedded-copy.srt']);
   }
@@ -329,14 +329,14 @@ test('internal and Infuse players retain existing subtitle behavior', () => {
   src.find(22);rt.requests.at(-1).ok({item});
   view.options.onEnter(view.items[0],{}, {player:'inner'});
   assert.equal(rt.internal[0].subtitles.length,2);
-  view.options.onEnter(view.items[0],{}, {player:'infuse'});rt.requests.at(-1).ok({url:signed});
+  view.options.onEnter(view.items[0],{}, {player:'infuse'});rt.requests.at(-1).ok({item});rt.requests.at(-1).ok({url:signed});
   assert.equal(new URL(rt.launches[0]).searchParams.get('sub'),'https://subs.example/embedded-copy.srt');
 });
 test('fast movie launch remains cancellable and never retries old media on timeout', () => {
   const rt=runtime({storage:{kp_token:'dummy-fixture',player:'infuse'}});
   const {src,view,item}=movieWithFile(rt,{noLinks:true});
   src.find(22);rt.requests.at(-1).ok({item});
-  view.options.onEnter(view.items[0]);const resolve=rt.requests.at(-1);
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});const resolve=rt.requests.at(-1);
   assert.match(resolve.url,/media-video-link/);
   rt.tickAll();resolve.ok({url:signed});
   assert.equal(rt.launches.length,0);
@@ -349,7 +349,7 @@ test('after Infuse handoff, pending timers, proxy state and source teardown do n
   src.find(22); rt.requests.at(-1).ok({item});
   let marks=0; view.items[0].mark=()=>marks++;
   view.items[0].timeline={time:37,percent:1};
-  view.options.onEnter(view.items[0]); rt.requests.at(-1).ok({url:signed});
+  view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item}); rt.requests.at(-1).ok({url:signed});
   const launch=rt.launches[0], requestCount=rt.requests.length;
   const data=new URL(launch).searchParams;
   assert.equal(data.get('url'),signed); assert.equal(data.get('position'),'37');
@@ -371,8 +371,8 @@ test('large size metadata never lowers quality, changes the file or adds a pre-d
     src.find(22);rt.requests.at(-1).ok({item});
     view.items[0].timeline={time:421,percent:1};
     const before=rt.requests.length;
-    view.options.onEnter(view.items[0]);
-    assert.equal(rt.requests.length-before,1);
+    view.options.onEnter(view.items[0]);rt.requests.at(-1).ok({item});
+    assert.equal(rt.requests.length-before,2);
     const resolve=new URL(rt.requests.at(-1).url);
     assert.match(resolve.pathname,/items\/media-video-link$/);
     assert.equal(resolve.searchParams.get('file'),'/fixture/max.mp4');
@@ -381,6 +381,6 @@ test('large size metadata never lowers quality, changes the file or adds a pre-d
     const data=new URL(rt.launches[0]).searchParams;
     assert.equal(data.get('url'),signed); assert.equal(data.get('position'),'421');
     assert.equal(data.has('size'),false); assert.equal(rt.internal.length,0);
-    assert.equal(rt.requests.length-before,1);
+    assert.equal(rt.requests.length-before,2);
   }
 });

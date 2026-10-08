@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KinoPub 1.0.73-mx.19 для Lampa MX</title>
+<title>KinoPub 1.0.73-mx.21 для Lampa MX</title>
 <style>
   :root { color-scheme: dark; }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -24,9 +24,10 @@
 </head>
 <body>
 
-<h1>KinoPub 1.0.73-mx.19 для Lampa MX</h1>
-<p>Отдельный эксперимент Infuse HLS2 получает свежую ссылку того же файла и качества. Прямой файл остаётся режимом по умолчанию. Совместимость, дорожки и устойчивость HLS2 на Apple TV ещё не подтверждены.</p>
-<p>Выбор: Настройки → KinoPub → «Infuse: передача». «Infuse: последняя передача» показывает формат и этап, но не подтверждает воспроизведение. Shadowrocket не изменён; одинаковый сетевой вход не подтверждён. <a href="https://github.com/aomikh/lampa_kinopub/blob/main/audit/infuse-hls2-mx19.md">Проверки и ограничения</a>.</p>
+<h1>KinoPub 1.0.73-mx.21 для Lampa MX</h1>
+<p>Infuse получает прямой файл максимального качества. Экспериментальный режим удалён. Подготовлена отдельная привязка устройства Infuse со своим сохранённым входом.</p>
+<p>После установки открой Настройки → KinoPub → «Infuse: подключить отдельное устройство», один раз введи код KinoPub. Дальше используй обычный запуск фильма или серии. Настройки качества и формата Infuse выбирать не нужно.</p>
+<p>Редакция подготовлена в отдельной ветке; публикация main/GitHub Pages выполняется отдельно. <a href="https://github.com/aomikh/lampa_kinopub/blob/main/audit/infuse-direct-device-mx21.md">Состав изменений и проверок</a>.</p>
 
 <p>
   Плагин-источник видео <strong>kinopub</strong> для приложения
@@ -37,14 +38,14 @@
 
 <div class="note">
   Прямая ссылка для добавления в Lampa: <br>
-  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.19</code>
+  <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.21</code>
 </div>
 
 <h2>Установка</h2>
 <ol>
   <li>В Lampa откройте <em>Настройки → Расширения</em>.</li>
   <li>Замените адрес существующего KinoPub. При первой установке нажмите <em>Добавить плагин</em>. Оставьте только одну активную копию.</li>
-  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.19</code></li>
+  <li>Введите URL: <code>https://aomikh.github.io/lampa_kinopub/kp.js?v=1.0.73-mx.21</code></li>
   <li>Сохраните, полностью закройте Lampa MX через переключатель приложений Apple TV и откройте снова.</li>
   <li>На карточке фильма нажмите <strong>Смотреть</strong>. KinoPub открывается сразу внутри Lampa. Затем запустите выбранный материал через Infuse.</li>
 </ol>
@@ -64,9 +65,9 @@
 <p>В <em>Настройки → KinoPub</em> доступны:</p>
 <ul>
   <li><strong>URL лог-сервера</strong> — для отладки. Если пусто — логи только в browser console.</li>
-  <li><strong>Макс. качество</strong> — максимальное разрешение при выборе потока (480p…2160p), не ограничение битрейта.</li>
+  <li><strong>Макс. качество</strong> — предел разрешения для других плееров. Infuse всегда выбирает максимум.</li>
   <li><strong>Формат потока</strong>: Авто, HLS, HLS2, HLS4. HLS2/HLS4 являются полями KinoPub.</li>
-  <li><strong>Infuse: передача</strong>: прямой файл по умолчанию или HLS2 как Авто Online (эксперимент). Дорожки, субтитры и режимы изображения требуется проверить до выбора основного режима.</li>
+  <li><strong>Infuse: подключить отдельное устройство</strong>: сохранённый вход KinoPub для Infuse. При первом запуске без входа предлагается код активации. <strong>Infuse: отключить устройство</strong> удаляет только этот вход.</li>
   <li><strong>Infuse: последняя передача</strong>: версия, формат, качество и этап без секретных адресов. Завершение передачи не означает успешное воспроизведение.</li>
   <li><strong>CORS-прокси</strong> — необязательно. Заполняйте только если упёрлись в CORS.</li>
   <li><strong>Авторизоваться / Выйти</strong> — управление сессией kinopub.</li>
