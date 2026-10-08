@@ -81,7 +81,7 @@ function runtime(options = {}) {
       addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
   function $(arg) {return options.jquery ? options.jquery(arg) : jq(arg);}
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
-  const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl',
+  const exports = ['parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl','infuseFileUrl','infuseHlsUrl',
     'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
     'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates',
     'mountKinoPubCard','kinoPubCardButton','addSettings'];

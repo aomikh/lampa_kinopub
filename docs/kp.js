@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.18';
+  var PLUGIN_VERSION  = '1.0.73-mx.19';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -96,6 +96,9 @@
   var KEY_FORMAT      = 'kp_format';
   var KEY_PROXY       = 'kp_proxy';
   var KEY_SUBS        = 'kp_subtitles_enabled';
+  // New opt-in key: obsolete mx.15 experiment preferences must not enable it.
+  var KEY_INFUSE_FORMAT = 'kp_infuse_format_v1';
+  var KEY_INFUSE_ATTEMPT = 'kp_infuse_last_handoff_v1';
 
   // Never log URL paths: KinoPub can carry the credential in the path as
   // well as the query. This affects diagnostics only, never the media URL.
@@ -131,7 +134,12 @@
     try {
       var parsed = new URL(url);
       info.scheme = parsed.protocol.replace(':', '');
-      info.host = parsed.hostname;
+      // Host labels may contain per-session identifiers. Keep only service
+      // names and the non-unique route group, never individual video hosts.
+      var group = /(?:^|\.)(msk-static-0[567]\.cdntogo\.net)$/i.exec(parsed.hostname);
+      info.host = group ? '*.' + group[1] :
+        /^(api\.service-kp\.com|kino\.pub|kinopub\.fastcdn\.pics)$/i.test(parsed.hostname)
+          ? parsed.hostname : '[redacted-host]';
       info.kind_hint = /\.m3u8(?:$|\/)/i.test(parsed.pathname) ? 'manifest-extension' :
         /\.(mp4|mkv|mov|m4v|ts)$/i.test(parsed.pathname) ? 'file-extension' : 'unknown';
       if (url.indexOf(KP_PROXY_URL + '/manifest-proxy?') === 0) info.kind_hint = 'manifest-proxy-path';
@@ -151,6 +159,30 @@
     var path = value.split('?')[0].split('#')[0];
     if (/\.(m3u8|mpd)$/i.test(path) || /\/(hls(?:2|4)?|manifest-proxy)(?:\/|$)/i.test(path)) return null;
     return value;
+  }
+
+  function infuseHlsUrl(value, format) {
+    if (format !== 'hls2' || !mediaUrl(value)) return null;
+    // Format provenance is the API hls2 field or an explicit type=hls2
+    // request. KinoPub documents HLS URLs ending in .mp4 or no extension.
+    // Reject recognisable foreign delivery paths, not opaque signed URLs.
+    var path = value.split('?')[0].split('#')[0];
+    if (/\.mpd$/i.test(path) || /\/(http|hls|hls4|manifest-proxy)(?:\/|$)/i.test(path)) return null;
+    return value;
+  }
+
+  function infusePlayUrl(play) {
+    var format = play && (play._kpFormat || 'http');
+    return format === 'http' ? infuseFileUrl(play.url) : infuseHlsUrl(play.url, format);
+  }
+
+  function infuseStage(stage, format, quality, entries) {
+    // One local, secret-free checkpoint. It describes link preparation and
+    // scheme dispatch only; the JS plugin cannot observe native playback.
+    var record = { version: PLUGIN_VERSION, stage: stage, format: format,
+      quality: quality || null, entries: entries || 0, playbackConfirmed: false };
+    Lampa.Storage.set(KEY_INFUSE_ATTEMPT, record);
+    Logger.info('infuse', 'link handoff stage (playback unconfirmed)', record);
   }
 
   function numberValue(value) {
@@ -259,7 +291,8 @@
     var full = false;
     list.slice(0, 40).forEach(function (p, index) {
       if (full) return;
-      if (!p || !infuseFileUrl(p.url) || !p._kpInfuse) { full = true; return; }
+      if (!p || !p._kpInfuse || (p._kpFormat || 'http') !== (play._kpFormat || 'http') ||
+          !infusePlayUrl(p)) { full = true; return; }
       var position = p.timeline && Number(p.timeline.time);
       var part = 'url=' + encodeURIComponent(p.url) +
         '&position=' + (isFinite(position) && position > 0 ? Math.floor(position) : 0);
@@ -283,13 +316,18 @@
     // Same scheme dispatch used by Lampa's external adapter. Its current
     // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
     try {
+      infuseStage('dispatch-requested', play._kpFormat || 'http', play._kpQuality,
+        (url.match(/(?:\?|&)url=/g) || []).length);
       window.location.assign(url);
+      infuseStage('dispatch-returned', play._kpFormat || 'http', play._kpQuality,
+        (url.match(/(?:\?|&)url=/g) || []).length);
       Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
-        resource: resourceInfo(play.url), deliveryField: 'http', quality: play._kpQuality,
-        entries: (play.playlist || [play]).length, callbacks: false
+        stage: 'dispatch', deliveryField: play._kpFormat || 'http', quality: play._kpQuality,
+        entries: (url.match(/(?:\?|&)url=/g) || []).length, callbacks: false
       });
       return true;
     } catch (e) {
+      infuseStage('dispatch-error', play._kpFormat || 'http', play._kpQuality);
       Logger.error('infuse', 'handoff failed', { error: String(e) });
       Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_handoff_error'));
       return false;
@@ -739,6 +777,10 @@
         // Official exact-file resolver. Do not derive a URL from a HLS path
         // or reuse a cached item link when this request fails.
         api(network, '/items/media-video-link', { file: file, type: 'http' }, ok, err);
+      },
+      hls2VideoLink: function (network, file, ok, err) {
+        // Same documented API, separate delivery path: never the http resolver.
+        api(network, '/items/media-video-link', { file: file, type: 'hls2' }, ok, err);
       },
       profile: function (network, ok, err) {
         api(network, '/user', null, ok, err);
@@ -1734,7 +1776,10 @@
 
   function preferredFormat(player) {
     player = detectActualPlayer(player);
-    if (player === 'infuse') return 'http';
+    if (player === 'infuse') {
+      var delivery = Lampa.Storage.get(KEY_INFUSE_FORMAT, 'http');
+      return delivery === 'http' || delivery === 'hls2' ? delivery : null;
+    }
     if (KP_BLOB_TEST) {
       // Legacy diagnostic — see KP_BLOB_TEST flag.
       return 'hls4';
@@ -2152,8 +2197,26 @@
    * usable by Lampa.Player.play({quality: ...})
    * Plus return the URL for the requested target quality (or the largest available <= maxQuality).
    */
-  function pickStream(files, format, target, allowFileReference) {
+  function pickStream(files, format, target, allowFileReference, strictInfuse) {
     if (!files || !files.length) return null;
+    if (strictInfuse) {
+      if (format !== 'hls2') return null;
+      // Select quality BEFORE checking links. A missing HLS2 at the selected
+      // quality cannot silently choose a lower resolution or another format.
+      var candidates = files.filter(function (f) { return f.quality <= maxQuality(); });
+      var tn = target ? parseInt(String(target).replace(/[^0-9]/g, ''), 10) :
+        candidates.length ? candidates[0].quality : null;
+      candidates = candidates.filter(function (f) { return f.quality === tn; });
+      if (candidates.length !== 1) return null; // No ambiguous same-quality file.
+      var selected = candidates[0];
+      var hls = infuseHlsUrl(selected.urls && selected.urls.hls2, 'hls2');
+      // With nolinks/file-only metadata the exact format can be requested.
+      // A populated map without a valid hls2 entry is explicitly unavailable.
+      var linksOmitted = !selected.urls || !Object.keys(selected.urls).length;
+      if (!hls && !(allowFileReference && selected.file && linksOmitted)) return null;
+      return { url: hls, quality: {}, currentQuality: selected.quality,
+        label: selected.label, file: selected.file, format: 'hls2' };
+    }
     // 'http' (progressive MP4) is intentionally NOT in any fallback list —
     // it freezes on Tizen players. Real auto resolution happens in
     // preferredFormat() before we get here, so 'auto' is just a defensive default.
@@ -2204,12 +2267,14 @@
     };
   }
 
-  // Offer only actual direct-file qualities, without resolving every file
+  // Offer only actual qualities for the selected Infuse delivery, without resolving every file
   // or changing the saved quality limit/player. No speculative CDN probes.
   function infuseQualityOptions(files) {
+    var format = preferredFormat('infuse');
     var seen = {};
     return (files || []).filter(function (file) {
-      if (seen[file.quality] || !pickStream(files, 'http', file.quality + 'p', true)) return false;
+      if (seen[file.quality] || !format ||
+          !pickStream(files, format, file.quality + 'p', true, format === 'hls2')) return false;
       seen[file.quality] = true;
       return true;
     }).map(function (file) {
@@ -2664,14 +2729,19 @@
       var generation = ++infuseGeneration;
       var kpId = raw.id;
       var stage = 'item';
-      Logger.info('infuse', 'refreshing KinoPub links', { season: item.season, episode: item.episode });
+      var delivery = preferredFormat('infuse');
+      var hls2 = delivery === 'hls2';
+      var pinned = null;
+      infuseStage('metadata', delivery);
       function fail(reason, status) {
         if (generation !== infuseGeneration || !infuseLaunching) return;
         infuseLaunching = false;
         clearTimeout(infuseTimer);
+        infuseNetwork.clear();
+        infuseStage('failed-' + stage, delivery, pinned && pinned._kpQuality);
         Logger.warn('infuse', reason, { stage: stage, status: status });
-        var code = stage === 'file' ? 'KP-I2' : 'KP-I1';
-        Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file') + ' [' + code +
+        var code = hls2 ? (stage === 'file' ? 'KP-H2' : 'KP-H1') : (stage === 'file' ? 'KP-I2' : 'KP-I1');
+        Lampa.Noty.show(Lampa.Lang.translate(hls2 ? 'kp_infuse_no_hls2' : 'kp_infuse_no_file') + ' [' + code +
           (numberValue(status) !== null ? ' HTTP ' + numberValue(status) : '') + ']');
       }
       // Bound each of the two API stages independently.
@@ -2686,25 +2756,41 @@
         stage = 'file';
         function handoff(url) {
           if (generation !== infuseGeneration || !infuseLaunching) return;
-          if (!infuseFileUrl(url)) { fail('file resolver returned no direct resource'); return; }
+          if (preferredFormat('infuse') !== delivery) { fail('delivery changed during preparation'); return; }
+          if (!(hls2 ? infuseHlsUrl(url, delivery) : infuseFileUrl(url))) {
+            fail('resolver returned no resource for requested format'); return;
+          }
           play.url = url;
           infuseLaunching = false;
           clearTimeout(infuseTimer);
+          infuseStage('link-ready', delivery, play._kpQuality, (play.playlist || [play]).length);
           dispatchInfuse(play);
         }
         if (play._kpFile) {
-          Logger.info('infuse', 'resolving selected file', { quality: play._kpQuality });
+          infuseStage('resolve-link', delivery, play._kpQuality);
           armTimeout();
-          KP.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
+          var resolve = hls2 ? KP.hls2VideoLink : KP.mediaVideoLink;
+          resolve(infuseNetwork, play._kpFile, function (result) {
             if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
+            if (hls2 && result && result.type && result.type !== delivery) {
+              fail('resolver reported a different format'); return;
+            }
             handoff(result && result.url);
-          }, function (xhr) { fail('direct file resolution failed', xhr && xhr.status); });
+          }, function (xhr) { fail('requested link resolution failed', xhr && xhr.status); });
+        } else if (hls2) {
+          fail('HLS2 requires an exact file reference');
         } else handoff(play.url);
       }
-      // The loaded card already identifies the selected movie file. Resolve
-      // that exact file once, without fetching the same item a second time.
+      if (!delivery) { fail('unsupported Infuse delivery setting'); return; }
+      if (hls2) {
+        pinned = toPlayElement(item, 'infuse', targetQuality);
+        if (!pinned || !pinned._kpFile) { fail('no unambiguous HLS2 file at selected quality'); return; }
+        infuseStage('metadata', delivery, pinned._kpQuality);
+      }
+      // Preserve the fast compatibility-file movie path. Experimental HLS2
+      // always refreshes metadata, then verifies the pinned quality and file.
       // Episodes retain their item refresh for the upcoming playlist.
-      if (item.kp.kind === 'movie') {
+      if (!hls2 && item.kp.kind === 'movie') {
         var selectedMovie = toPlayElement(item, 'infuse', targetQuality);
         if (selectedMovie && selectedMovie._kpFile) { submit(selectedMovie); return; }
       }
@@ -2713,6 +2799,7 @@
         if (generation !== infuseGeneration || !infuseLaunching || stage !== 'item') return;
         var fresh = json && json.item;
         if (!fresh || String(fresh.id) !== String(kpId)) { fail('item identity mismatch'); return; }
+        if (preferredFormat('infuse') !== delivery) { fail('delivery changed during preparation'); return; }
         stage = 'file';
         function refreshed(element) {
           var video;
@@ -2730,10 +2817,17 @@
           Object.keys(element).forEach(function (key) { copy[key] = element[key]; });
           copy.kp = { kind: element.kp.kind, files: parseFiles(video.files),
             audios: video.audios || [], subtitles: video.subtitles || [] };
-          return toPlayElement(copy, 'infuse', targetQuality);
+          var result = toPlayElement(copy, 'infuse', hls2 ? pinned._kpQuality + 'p' : targetQuality);
+          if (hls2) {
+            var original = element === item ? pinned :
+              toPlayElement(element, 'infuse', pinned._kpQuality + 'p');
+            if (!result || !original || !original._kpFile || result._kpFile !== original._kpFile ||
+                result._kpQuality !== original._kpQuality) return null;
+          }
+          return result;
         }
         var play = refreshed(item);
-        if (!play) { fail('no direct file at selected quality'); return; }
+        if (!play) { fail('requested file or format unavailable at selected quality'); return; }
         var playlist = [];
         var selected = items.indexOf(item);
         var incomplete = false;
@@ -2742,7 +2836,7 @@
             if (incomplete) return;
             var p = entry === item ? play : refreshed(entry);
             // Never jump across an episode with an unavailable link.
-            if (p && (entry === item || infuseFileUrl(p.url))) playlist.push(p);
+            if (p && (entry === item || infusePlayUrl(p))) playlist.push(p);
             else incomplete = true;
           });
         play.playlist = playlist;
@@ -2996,7 +3090,8 @@
 
     function streamForElement(element, target, player) {
       var fmt = preferredFormat(player);
-      var stream = pickStream(element.kp.files, fmt, target, player === 'infuse');
+      if (player === 'infuse' && !fmt) return null;
+      var stream = pickStream(element.kp.files, fmt, target, player === 'infuse', player === 'infuse' && fmt === 'hls2');
       if (!stream) {
         Logger.warn('source', 'no stream picked', { kind: element.kp.kind, fmt: fmt });
         return null;
@@ -3073,6 +3168,7 @@
         delete play.quality;
         delete play.callback;
         play._kpInfuse = true;
+        play._kpFormat = preferredFormat('infuse');
         play._kpQuality = stream.currentQuality;
         play._kpFile = stream.file;
         play.season = element.season;
@@ -3080,7 +3176,7 @@
         var seriesName = object.movie && (object.movie.name || object.movie.title) || '';
         var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || (stream.url || '').split('?')[0]).split('#')[0]);
         play.filename = (element.kp.kind === 'episode' ? seriesName + ' ' + displayTitle : displayTitle) +
-          (extension ? '.' + extension[1] : '');
+          (play._kpFormat === 'http' && extension ? '.' + extension[1] : '');
         if (Lampa.Storage.get(KEY_SUBS, false)) {
           // The documented interface accepts one subtitle URL per video,
           // but does not expose a timing-shift or audio-selection parameter.
@@ -4461,6 +4557,32 @@
       field: { name: Lampa.Lang.translate('kp_set_format'), description: Lampa.Lang.translate('kp_set_format_descr') }
     });
 
+    if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
+      Lampa.SettingsApi.addParam({
+        component: 'kp',
+        param: { name: KEY_INFUSE_FORMAT, type: 'select', values: {
+          'http': Lampa.Lang.translate('kp_infuse_format_file'),
+          'hls2': Lampa.Lang.translate('kp_infuse_format_hls2')
+        }, "default": 'http' },
+        field: { name: Lampa.Lang.translate('kp_infuse_format') + ' (' + PLUGIN_VERSION + ')',
+          description: Lampa.Lang.translate('kp_infuse_format_descr') }
+      });
+      Lampa.SettingsApi.addParam({
+        component: 'kp',
+        param: { name: 'kp_action_infuse_last_handoff', type: 'trigger', "default": false },
+        field: { name: Lampa.Lang.translate('kp_infuse_last_handoff'),
+          description: Lampa.Lang.translate('kp_infuse_last_handoff_descr') },
+        onChange: function () {
+          var last = Lampa.Storage.get(KEY_INFUSE_ATTEMPT, null);
+          if (!last) { Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_handoff')); return; }
+          Lampa.Noty.show('KinoPub ' + last.version + ' / ' + last.format + ' / ' +
+            (last.quality ? last.quality + 'p' : '?') + ' / ' +
+            Lampa.Lang.translate('kp_infuse_stage_' + last.stage) + ' / ' +
+            last.entries + ' / ' + Lampa.Lang.translate('kp_infuse_unconfirmed'));
+        }
+      });
+    }
+
     Lampa.SettingsApi.addParam({
       component: 'kp',
       param: { name: KEY_PROXY, type: 'input', values: '', "default": '' },
@@ -4617,6 +4739,31 @@
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
       kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
       kp_infuse_quality: { ru: 'Infuse: выбрать качество', en: 'Infuse: choose quality', ua: 'Infuse: вибрати якість' },
+      kp_infuse_format: { ru: 'Infuse: передача', en: 'Infuse: delivery', ua: 'Infuse: передача' },
+      kp_infuse_format_file: { ru: 'Прямой файл (совместимость)', en: 'Direct file (compatibility)', ua: 'Прямий файл (сумісність)' },
+      kp_infuse_format_hls2: { ru: 'HLS2: как Авто Online (эксперимент)', en: 'HLS2: like Online Auto (experimental)', ua: 'HLS2: як Авто Online (експеримент)' },
+      kp_infuse_format_descr: {
+        ru: 'HLS2 на этом устройстве не проверен. Дорожки, субтитры, HDR/Dolby Vision и многоканальный звук могут отличаться от файла. Формат и качество автоматически не подменяются. Для возврата выберите прямой файл.',
+        en: 'HLS2 is unverified on this device. Tracks, subtitles, HDR/Dolby Vision and surround audio may differ from the file. No automatic format or quality fallback. Select direct file to revert.',
+        ua: 'HLS2 на цьому пристрої не перевірено. Доріжки, субтитри, HDR/Dolby Vision і багатоканальний звук можуть відрізнятися від файлу. Для повернення виберіть прямий файл.'
+      },
+      kp_infuse_last_handoff: { ru: 'Infuse: последняя передача', en: 'Infuse: last handoff', ua: 'Infuse: остання передача' },
+      kp_infuse_last_handoff_descr: { ru: 'Версия, формат, качество и этап последней попытки. Секретных ссылок нет. Состояние воспроизведения Infuse недоступно.', en: 'Version, format, quality and last attempt stage. No secret URLs. Native playback status is unavailable.', ua: 'Версія, формат, якість та етап останньої спроби. Без секретних посилань.' },
+      kp_infuse_no_handoff: { ru: 'Попыток передачи в этой версии ещё нет.', en: 'No handoff attempts yet.', ua: 'Спроб передачі ще немає.' },
+      kp_infuse_unconfirmed: { ru: 'воспроизведение не подтверждено', en: 'playback unconfirmed', ua: 'відтворення не підтверджено' },
+      'kp_infuse_stage_metadata': { ru: 'получение карточки', en: 'fetching metadata', ua: 'отримання картки' },
+      'kp_infuse_stage_resolve-link': { ru: 'запрос свежей ссылки', en: 'resolving fresh link', ua: 'запит свіжого посилання' },
+      'kp_infuse_stage_link-ready': { ru: 'ссылка готова', en: 'link ready', ua: 'посилання готове' },
+      'kp_infuse_stage_dispatch-requested': { ru: 'передача запрошена', en: 'dispatch requested', ua: 'передачу запитано' },
+      'kp_infuse_stage_dispatch-returned': { ru: 'вызов передачи завершён', en: 'dispatch call returned', ua: 'виклик передачі завершено' },
+      'kp_infuse_stage_dispatch-error': { ru: 'ошибка передачи', en: 'dispatch error', ua: 'помилка передачі' },
+      'kp_infuse_stage_failed-item': { ru: 'ошибка получения карточки', en: 'metadata failed', ua: 'помилка отримання картки' },
+      'kp_infuse_stage_failed-file': { ru: 'ошибка получения ресурса', en: 'resource failed', ua: 'помилка отримання ресурсу' },
+      kp_infuse_no_hls2: {
+        ru: 'Не удалось получить HLS2 для того же файла в выбранном качестве. Другой формат или файл не подставлен. Для проверки совместимости отдельно выберите прямой файл.',
+        en: 'No HLS2 for the exact file and quality. No other format or file was substituted. Select direct file separately for compatibility.',
+        ua: 'Не вдалося отримати HLS2 для того самого файлу в обраній якості. Інший формат або файл не підставлено.'
+      },
       kp_infuse_no_file: {
         ru: 'Не удалось получить прямой файл KinoPub в выбранном качестве. Повторите запуск или выберите доступное качество.',
         en: 'No fresh direct KinoPub file at the selected quality. Retry or choose an available quality.',

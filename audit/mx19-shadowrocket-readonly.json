@@ -1,0 +1,40 @@
+{
+  "config_head": "566c6480c0641d08269f32d6e4218b2ea39464c7",
+  "sha256": "61bf7053601daf235d2767aa1e40a3888e7a8bc59e57bbc8d6f5667ed56c993b",
+  "unchanged_bytes": true,
+  "limited_static_parser_passed": true,
+  "apple_before_external_lists": true,
+  "telegram_six_deleted_rules_remain_absent": true,
+  "api_proxy": true,
+  "final_proxy": true,
+  "video_routes": [
+    {
+      "host": "msk-static-05.cdntogo.net",
+      "matched_static_rule": "DOMAIN-SUFFIX,msk-static-05.cdntogo.net,PROXY"
+    },
+    {
+      "host": "fixture.msk-static-05.cdntogo.net",
+      "matched_static_rule": "DOMAIN-SUFFIX,msk-static-05.cdntogo.net,PROXY"
+    },
+    {
+      "host": "msk-static-06.cdntogo.net",
+      "matched_static_rule": "DOMAIN-SUFFIX,msk-static-06.cdntogo.net,PROXY"
+    },
+    {
+      "host": "fixture.msk-static-06.cdntogo.net",
+      "matched_static_rule": "DOMAIN-SUFFIX,msk-static-06.cdntogo.net,PROXY"
+    },
+    {
+      "host": "msk-static-07.cdntogo.net",
+      "matched_static_rule": "DOMAIN-SUFFIX,msk-static-07.cdntogo.net,PROXY"
+    },
+    {
+      "host": "fixture.msk-static-07.cdntogo.net",
+      "matched_static_rule": "DOMAIN-SUFFIX,msk-static-07.cdntogo.net,PROXY"
+    }
+  ],
+  "live_dns_checked": false,
+  "native_validator_used": false,
+  "network_entry_confirmed": false,
+  "device_tested": false
+}

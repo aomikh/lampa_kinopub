@@ -1,0 +1,27 @@
+{
+  "fixture_kind": "synthetic API-shaped data; no account response or live media",
+  "movie": {
+    "id": 22,
+    "title": "Fixture Movie",
+    "type": "movie",
+    "videos": [{
+      "id": 101,
+      "audios": [{"index": 1, "codec": "ac3", "channels": 6, "lang": "rus"}, {"index": 2, "codec": "aac", "channels": 2, "lang": "eng"}],
+      "subtitles": [{"lang": "eng", "shift": 0, "embed": true, "url": "https://subs.example/fixture.srt?sig=a%2B+b%26"}],
+      "files": [
+        {"quality": "2160p", "file": "/fixture/movie-2160.mp4", "codec": "hevc", "urls": {"http": "https://video.example/http/movie-2160.mp4", "hls2": "https://video.example/hls2/movie-2160.mp4", "hls4": "https://video.example/hls4/movie-2160.mp4"}},
+        {"quality": "1080p", "file": "/fixture/movie-1080.mp4", "codec": "h264", "urls": {"http": "https://video.example/http/movie-1080.mp4", "hls2": "https://video.example/hls2/movie-1080.mp4", "hls4": "https://video.example/hls4/movie-1080.mp4"}}
+      ]
+    }]
+  },
+  "serial": {
+    "id": 23,
+    "title": "Fixture Series",
+    "type": "serial",
+    "seasons": [{"number": "2", "episodes": [
+      {"number": "1", "id": 201, "files": [{"quality": "1080p", "file": "/fixture/s2e1.mp4", "urls": {"http": "https://video.example/http/s2e1", "hls2": "https://video.example/hls2/s2e1"}}]},
+      {"number": "2", "id": 202, "subtitles": [{"lang": "rus", "shift": 0, "url": "https://subs.example/s2e2.srt"}], "files": [{"quality": "1080p", "file": "/fixture/s2e2.mp4", "urls": {"http": "https://video.example/http/s2e2", "hls2": "https://video.example/hls2/s2e2"}}]},
+      {"number": "3", "id": 203, "files": [{"quality": "1080p", "file": "/fixture/s2e3.mp4", "urls": {"http": "https://video.example/http/s2e3", "hls2": "https://video.example/hls2/s2e3"}}]}
+    ]}]
+  }
+}

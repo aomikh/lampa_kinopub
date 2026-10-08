@@ -105,7 +105,8 @@ test('diagnostics redact nested URL paths, encoded URL values, token keys and ma
   assert.equal(safe.includes('secret-path-token'),false);
   assert.equal(safe.includes('fixture-secret'),false);
   assert.equal(JSON.stringify(rt.logs).includes('secret-path-token'),false);
-  assert.match(safe,/video.example/);
+  assert.match(safe,/redacted-host/);
+  assert.equal(safe.includes('video.example'),false);
 });
 test('Tizen launch still wraps the current episode and every playlist entry', () => {
   const rt=runtime({platform:'tizen',storage:{kp_token:'dummy-fixture',player:'tizen'}});rt.api.setProxy(true);

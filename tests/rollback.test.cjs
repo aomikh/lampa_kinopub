@@ -5,20 +5,21 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {runtime}=require('./runtime.cjs');
 
-test('rollback removes Infuse experiments, diagnostic requests and launch tracing from shipped code',()=>{
+test('mx.19 does not restore obsolete Infuse experiments, probing or launch tracing',()=>{
   const code=fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
-  assert.match(code,/PLUGIN_VERSION\s*=\s*'1\.0\.73-mx\.18'/);
+  assert.match(code,/PLUGIN_VERSION\s*=\s*'1\.0\.73-mx\.19'/);
   assert.doesNotMatch(code,/infuseFileNetwork|earlyFile|deferAuthRefresh/);
   assert.doesNotMatch(code,/LaunchTrace|lastInfuseAttempt|probeInfuseResource|showInfuseDiagnostic|infuseHls2Test|InfuseVlcSource|kp_launch_trace|kp_infuse_delivery|kp_action_infuse_check|kp_trace_/);
 });
-for(const platform of ['apple_tv','apple','tizen']) test(platform+': settings keep ordinary controls without Infuse diagnostics',()=>{
+for(const platform of ['apple_tv','apple','tizen']) test(platform+': settings preserve user preferences and add opt-in delivery only on Apple',()=>{
   const rt=runtime({platform,storage:{kp_token:'fixture',kp_infuse_delivery:'hls4',kp_launch_trace:true,
     kp_format_migrated_v4:'1',kp_format_migrated_v5:'1'}});
   const names=[];
   rt.Lampa.SettingsApi={addComponent(){},addParam(p){names.push(p.param.name);}};
   const before={...rt.storage};
   rt.api.addSettings();
-  assert.deepEqual(names,['kp_log_url','kp_max_quality','kp_format','kp_proxy','kp_subtitles_enabled',
+  assert.deepEqual(names,['kp_log_url','kp_max_quality','kp_format',
+    ...(platform==='tizen'?[]:['kp_infuse_format_v1','kp_action_infuse_last_handoff']), 'kp_proxy','kp_subtitles_enabled',
     'kp_action_logout','kp_action_login','kp_action_region']);
   assert.deepEqual(rt.storage,before);
   assert.equal(rt.requests.length,0);assert.equal(rt.mediaRequests.length,0);
