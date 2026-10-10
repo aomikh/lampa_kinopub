@@ -1,0 +1,27 @@
+[KP:boot] kp.js v1.0.73-mx.24 starting { session: 'uuuuuuuu', app: 200, ua: 'node-smoke' }
+[KP:auth] no token at startup
+[KP:player-evt] Lampa.Player.listener unavailable
+[KP:player-evt] Lampa.PlayerVideo.listener unavailable
+[KP:boot] kp.js initialized
+OK   manifest set
+OK   manifest type=video
+OK   manifest component=online_kp
+OK   onContextMenu fn
+OK   onContextLauch fn
+OK   component registered
+OK   component is constructor
+OK   lang keys >= 10
+OK   kp_watch translation present
+OK   listener follow=full
+OK   listener has cb
+OK   settings component added
+OK   settings has log url
+OK   settings has max quality
+OK   settings has format
+OK   settings has login
+OK   default max_quality stored
+OK   default format stored
+OK   listener.cb mounts card without errors
+OK   component instantiates
+
+=== 20 pass, 0 fail ===

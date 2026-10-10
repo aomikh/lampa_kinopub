@@ -1,10 +1,13 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 const {runtime} = require('./runtime.cjs');
 
 // Small DOM fixture, limited to the jQuery operations used by card mounting.
-// The hierarchy matches full_start_new in Lampa 335 (b4a13b6): the Sources
+// The hierarchy matches full_start_new in Lampa 335 (7cb2ce0): the Sources
 // container is hidden, while the main button row is visible.
 function dom() {
   function node(classes, markup = '') {
@@ -22,6 +25,13 @@ function dom() {
       return matches(n, parts.at(-1)) && (parts.length === 1 || n.parent && matches(n.parent, parts[0]));
     })));
     q.first = () => wrap(nodes.slice(0,1));
+    q.not = selector => wrap(nodes.filter(n => !matches(n,selector)));
+    q.filter = fn => wrap(nodes.filter((n,i) => fn.call(n,i,n)));
+    q.each = fn => {nodes.forEach((n,i) => fn.call(n,i,n));return q;};
+    q.clone = () => wrap(nodes.map(n => ({...n,classes:new Set(n.classes),children:[],events:[],parent:null})));
+    q.prop = name => name === 'outerHTML' && nodes[0] ? nodes[0].markup : undefined;
+    q.text = () => nodes[0] && nodes[0].markup.replace(/<[^>]*>/g,'') || '';
+    q.data = name => nodes[0] && (nodes[0].markup.match(new RegExp('data-'+name+'="([^"]*)"')) || [])[1];
     q.remove = () => {nodes.forEach(n => {if(n.parent) n.parent.children = n.parent.children.filter(c => c !== n); n.parent = null;}); return q;};
     q.append = other => {other.remove(); other.nodes.forEach(n => {n.parent=nodes[0]; nodes[0].children.push(n);}); return q;};
     q.after = other => {if(nodes[0] && nodes[0].parent) {const p=nodes[0].parent; other.remove(); other.nodes.forEach((n,i) => {n.parent=p;p.children.splice(p.children.indexOf(nodes[0])+1+i,0,n);});} return q;};
@@ -33,6 +43,7 @@ function dom() {
         return !((!type || type===ht) && (!ns || ns===hn));
       })); return q;
     };
+    q.unbind = q.off;
     q.trigger = event => {nodes.forEach(n => n.events.slice().filter(h=>h.event.split('.')[0]===event).forEach(h=>h.fn()));return q;};
     q.toggleClass = (name, yes) => {nodes.forEach(n => yes ? n.classes.add(name) : n.classes.delete(name));return q;};
     q.removeClass = name => q.toggleClass(name,false);
@@ -43,7 +54,7 @@ function dom() {
     if (typeof arg === 'string') return wrap([node(arg.match(/class="([^"]*)"/)[1], arg)]);
     return arg && arg.nodes ? arg : wrap(arg ? [arg] : []);
   }
-  return {$, make: classes => wrap([node(classes)])};
+  return {$, make: classes => wrap([node(classes,'<div class="'+classes+'"></div>')])};
 }
 
 function fixture({platform='apple_tv', modern=true, torrent=true, priority='another-source', hasWatch=true} = {}) {
@@ -141,13 +152,53 @@ test('modern layout without torrent anchor still exposes KinoPub through Sources
   assert.equal(f.holder.find('.buttons--container > .view--kinopub').length,1);
 });
 
-test('Tizen retains the grouped source, without the Apple TV shortcut',()=>{
+test('Tizen: Watch opens KinoPub directly and retains its grouped source',()=>{
   const f=fixture({platform:'tizen'}); f.api.mountKinoPubCard(f.event);
   assert.equal(f.sources.find('.view--kinopub').length,1);
-  assert.equal(f.visible.find('.kp-card-direct').length,0); assert.equal(f.start.modules.length,1);
+  assert.equal(f.visible.find('.kp-card-direct').length,0); assert.equal(f.start.modules.length,2);
   f.start.emit('onGroupButtons'); f.watch.trigger('hover:enter');
-  assert.equal(f.coreMenus.length,1); assert.equal(f.activities.length,0);
+  assert.equal(f.coreMenus.length,0); assert.equal(f.activities.length,1);
 });
+
+for(const platform of ['apple','browser','android','webos']) {
+  test(platform+': Watch opens the exact KinoPub card without choosing sources',()=>{
+    const f=fixture({platform}); f.api.mountKinoPubCard(f.event);
+    for(let i=0;i<2;i++) {f.start.emit('onGroupButtons');f.watch.trigger('hover:enter');}
+    assert.equal(f.coreMenus.length,0); assert.equal(f.activities.length,2);
+    assert.ok(f.activities.every(a => a.movie===f.movie && a.component==='online_kp'));
+    assert.equal(f.sources.find('.view--kinopub').length,1);
+    assert.equal(f.storage.full_btn_priority,'another-source');
+  });
+}
+
+// Exercise the actual upstream lifecycle and Watch handler, including grouping
+// after full/complite and on return. This is JS integration, not a device test.
+const coreRoot=process.env.LAMPA_SOURCE_DIR || path.resolve(__dirname,'../../lampa-source');
+const emitFile=path.join(coreRoot,'src/utils/emit.js');
+const buttonsFile=path.join(coreRoot,'src/components/full/start/buttons.js');
+const hasCore=fs.existsSync(emitFile) && fs.existsSync(buttonsFile);
+for(const platform of ['apple_tv','apple','browser','tizen','android','webos']) {
+  test('actual Lampa 335 '+platform+': Watch bypasses Trailers/KinoPub source menu on first load and return',
+    {skip:!hasCore && 'Set LAMPA_SOURCE_DIR to upstream 7cb2ce0'},()=>{
+      const f=fixture({platform,priority:''});
+      const context={$:f.$,Storage:f.Lampa.Storage,Utils:f.Lampa.Utils,Lang:f.Lampa.Lang,
+        Select:{show:menu=>f.coreMenus.push(menu)},Controller:{toggle(){}}};
+      vm.createContext(context);
+      vm.runInContext(fs.readFileSync(emitFile,'utf8').replace('export default Emit','globalThis.CoreEmit = Emit'),context);
+      vm.runInContext(fs.readFileSync(buttonsFile,'utf8').replace(/^import .+$/gm,'').replace('export default {','globalThis.CoreButtons = {'),context);
+      const start=new context.CoreEmit(); start.html=f.holder; start.use(context.CoreButtons);
+      f.event.link.items=[start]; f.api.mountKinoPubCard(f.event);
+      for(let i=0;i<3;i++) {
+        start.emit('groupButtons'); f.watch.trigger('hover:enter'); f.watch.trigger('hover:focus');
+        assert.equal(start.last,f.watch[0]);
+      }
+      assert.equal(f.activities.length,3); assert.equal(f.coreMenus.length,0);
+      assert.ok(f.activities.every(a=>a.movie===f.movie));
+      const stale=f.watch[0].events.find(h=>h.event==='hover:enter.kpWatch').fn;
+      start.emit('destroy'); stale(); start.emit('groupButtons'); f.watch.trigger('hover:enter');
+      assert.equal(f.activities.length,3);
+    });
+}
 
 test('legacy layout with Watch and activity.render fallback opens KinoPub without extra entry',()=>{
   const f=fixture({modern:false}); delete f.event.body; f.api.mountKinoPubCard(f.event);

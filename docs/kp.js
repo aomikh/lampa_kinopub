@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.23';
+  var PLUGIN_VERSION  = '1.0.73-mx.24';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -4582,7 +4582,9 @@
     var sources = holder.find('.buttons--container').first();
     var visible = holder.find('.full-start-new__buttons, .full-start__buttons').first();
     var watch = holder.find('.button--play').first();
-    var directWatch = Lampa.Platform.is('apple_tv') && watch.length;
+    // The Watch -> Sources layout is shared by Lampa platforms and shells.
+    // Bind by the actual button, not by a platform name reported by the shell.
+    var directWatch = watch.length > 0;
     if (sources.length) {
       // Lampa 335 groups these direct children under Watch -> Sources.
       sources.append(source);
@@ -4809,7 +4811,7 @@
     // settings
     addSettings();
 
-    // Apple TV Watch opens the same KinoPub activity as the source entry.
+    // Watch opens the same KinoPub activity as the source entry on every platform.
     Lampa.Listener.follow('full', function (e) {
       if (e.type !== 'complite') return;
       // v1.0.66: pre-fetch voice-sync snapshot from VPS so Storage is

@@ -1,0 +1,31 @@
+✔ Apple TV: ordinary Watch opens KinoPub without a source menu or separate button (7.803814ms)
+✔ both entries open the same KinoPub activity for the exact movie, without media or watched side effects (2.806356ms)
+✔ repeated completion keeps one source and activation without extra buttons or observers (3.606974ms)
+✔ native KinoPub pin cannot create a second KinoPub button; other pins/preferences remain (2.520589ms)
+✔ returning to the card rebinds Watch after core grouping and preserves focus handling (4.013902ms)
+✔ destroy cancels card activation; a stale callback cannot open the movie (2.418299ms)
+✔ switching cards does not reuse the previous movie (2.992335ms)
+✔ modern layout without torrent anchor still exposes KinoPub through Sources (2.366806ms)
+✔ Tizen: Watch opens KinoPub directly and retains its grouped source (3.390403ms)
+✔ apple: Watch opens the exact KinoPub card without choosing sources (2.977511ms)
+✔ browser: Watch opens the exact KinoPub card without choosing sources (2.427809ms)
+✔ android: Watch opens the exact KinoPub card without choosing sources (2.156022ms)
+✔ webos: Watch opens the exact KinoPub card without choosing sources (2.380918ms)
+✔ actual Lampa 335 apple_tv: Watch bypasses Trailers/KinoPub source menu on first load and return (5.248183ms)
+✔ actual Lampa 335 apple: Watch bypasses Trailers/KinoPub source menu on first load and return (3.246071ms)
+✔ actual Lampa 335 browser: Watch bypasses Trailers/KinoPub source menu on first load and return (3.050093ms)
+✔ actual Lampa 335 tizen: Watch bypasses Trailers/KinoPub source menu on first load and return (3.008976ms)
+✔ actual Lampa 335 android: Watch bypasses Trailers/KinoPub source menu on first load and return (3.938653ms)
+✔ actual Lampa 335 webos: Watch bypasses Trailers/KinoPub source menu on first load and return (3.022622ms)
+✔ legacy layout with Watch and activity.render fallback opens KinoPub without extra entry (2.170587ms)
+✔ legacy layout without Watch retains its original source button (2.217792ms)
+✔ missing movie cannot mount or launch a stale card (2.080056ms)
+✔ source markup has no release version, so later version bumps preserve its pin hash (3.041256ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 160.175372

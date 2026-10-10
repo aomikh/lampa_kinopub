@@ -1,30 +1,37 @@
 {
-  "version": "1.0.73-mx.23",
-  "baseline_commit": "19bcebf8aeb5b0c62d8551284ae91055e7a41453",
+  "version": "1.0.73-mx.24",
+  "baseline_commit": "2c5d6940ec4166f8f2902e5ba9c3a3fb055a46a8",
   "file": "docs/kp.js",
-  "bytes": 224528,
-  "sha256": "7122bc5684a13b1f9cb18e232bb3a28417c8358c5684d400750e41064e34fe3b",
+  "bytes": 224664,
+  "sha256": "48aa7868be8034ad764e137050a73066139bada3e19f6e5287f1495270c32f19",
   "plugin_url": "https://aomikh.github.io/lampa_kinopub/kp.js",
-  "publication_authorization": "Direct user request: remove Infuse changes and retain only main",
+  "publication_authorization": "User requested immediate update and only main; latest request makes Watch open KinoPub and keeps plugin name/URL",
   "javascript_tests": {
-    "passed": 87,
+    "passed": 97,
     "failed": 0,
     "skipped": 0,
-    "actual_core_adapters": 10
+    "actual_core_adapters": 10,
+    "actual_core_card_platforms": 6
   },
   "python_tests": {
-    "passed": 22,
-    "failed": 0
+    "rerun": false,
+    "reason": "HTTP/HLS code unchanged; prior mx.23 passed 22/22"
   },
   "smoke_tests": {
     "passed": 20,
     "failed": 0
   },
-  "removal_tests_before": {
-    "passed": 1,
-    "failed": 6
+  "watch_tests_before": {
+    "passed": 13,
+    "failed": 10,
+    "skipped": 0
+  },
+  "watch_tests_after": {
+    "passed": 23,
+    "failed": 0,
+    "skipped": 0
   },
   "lampa_source_commit": "7cb2ce0ce320070785ca0be4f43a14f638c1d7d8",
-  "device_validation": "Physical devices unavailable; native playback and audio switching unverified",
-  "rollback": "git revert the removal commit, then normal Pages deployment"
+  "device_validation": "Physical devices unavailable; actual JavaScript lifecycle tested, Apple TV UI unverified",
+  "rollback": "git revert the mx.24 commit, then normal Pages deployment"
 }

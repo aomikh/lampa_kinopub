@@ -21,10 +21,12 @@ function makeJq() {
       0: {},
       find: () => $$(),
       on: function () { return this; },
+      off: function () { return this; },
       append: function () { return this; },
       after: function () { return this; },
       remove: () => undefined,
       addClass: function () { return this; },
+      removeClass: function () { return this; },
       hasClass: () => false,
       text: function () { return this; },
       first: function () { return this; },
@@ -115,12 +117,16 @@ const Lampa = {
 };
 
 const Navigator = { canmove: () => false, move: () => {} };
+const runtimeErrors = [];
 
 const sandbox = {
   window: { addEventListener: () => {} },
   document: {},
   navigator: { userAgent: 'node-smoke' },
-  console,
+  console: { ...console, error: (...args) => {
+    runtimeErrors.push(args.map(String).join(' '));
+    console.error(...args);
+  } },
   setTimeout, clearTimeout, setInterval, clearInterval,
   $, Lampa, Navigator,
   XMLHttpRequest: function () {
@@ -179,7 +185,10 @@ if (listenerFollow && listenerFollow.cb) {
       data: { movie: { id: 1, title: 'Movie', original_title: 'Movie', name: '' } },
       object: { activity: { render: () => $() } }
     });
-    console.log('OK   listener.cb runs without throwing');
+    if (runtimeErrors.some(message => message.includes('[KP:button]') && message.includes('mount failed'))) {
+      throw new Error('Card mount logged an error');
+    }
+    console.log('OK   listener.cb mounts card without errors');
     pass++;
   } catch (e) {
     console.error('FAIL listener.cb threw:', e.stack || e);

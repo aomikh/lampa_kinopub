@@ -1,0 +1,243 @@
+✔ Apple TV: ordinary Watch opens KinoPub without a source menu or separate button (8.640082ms)
+✔ both entries open the same KinoPub activity for the exact movie, without media or watched side effects (2.672118ms)
+✔ repeated completion keeps one source and activation without extra buttons or observers (3.537056ms)
+✔ native KinoPub pin cannot create a second KinoPub button; other pins/preferences remain (2.877304ms)
+✔ returning to the card rebinds Watch after core grouping and preserves focus handling (4.559784ms)
+✔ destroy cancels card activation; a stale callback cannot open the movie (2.516839ms)
+✔ switching cards does not reuse the previous movie (2.616079ms)
+✔ modern layout without torrent anchor still exposes KinoPub through Sources (2.28767ms)
+✖ Tizen: Watch opens KinoPub directly and retains its grouped source (4.305359ms)
+✖ apple: Watch opens the exact KinoPub card without choosing sources (2.77397ms)
+✖ browser: Watch opens the exact KinoPub card without choosing sources (2.777686ms)
+✖ android: Watch opens the exact KinoPub card without choosing sources (2.385394ms)
+✖ webos: Watch opens the exact KinoPub card without choosing sources (2.439223ms)
+✔ actual Lampa 335 apple_tv: Watch bypasses Trailers/KinoPub source menu on first load and return (5.462708ms)
+✖ actual Lampa 335 apple: Watch bypasses Trailers/KinoPub source menu on first load and return (3.105517ms)
+✖ actual Lampa 335 browser: Watch bypasses Trailers/KinoPub source menu on first load and return (3.240266ms)
+✖ actual Lampa 335 tizen: Watch bypasses Trailers/KinoPub source menu on first load and return (3.245228ms)
+✖ actual Lampa 335 android: Watch bypasses Trailers/KinoPub source menu on first load and return (4.65173ms)
+✖ actual Lampa 335 webos: Watch bypasses Trailers/KinoPub source menu on first load and return (3.500299ms)
+✔ legacy layout with Watch and activity.render fallback opens KinoPub without extra entry (2.769637ms)
+✔ legacy layout without Watch retains its original source button (2.348724ms)
+✔ missing movie cannot mount or launch a stale card (2.378607ms)
+✔ source markup has no release version, so later version bumps preserve its pin hash (3.240857ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 13
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.675886
+
+✖ failing tests:
+
+test at tests/card-source.test.cjs:155:1
+✖ Tizen: Watch opens KinoPub directly and retains its grouped source (4.305359ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:158:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:164:3
+✖ apple: Watch opens the exact KinoPub card without choosing sources (2.77397ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:167:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:164:3
+✖ browser: Watch opens the exact KinoPub card without choosing sources (2.777686ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:167:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:164:3
+✖ android: Watch opens the exact KinoPub card without choosing sources (2.385394ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:167:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:164:3
+✖ webos: Watch opens the exact KinoPub card without choosing sources (2.439223ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:167:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:181:3
+✖ actual Lampa 335 apple: Watch bypasses Trailers/KinoPub source menu on first load and return (3.105517ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:195:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:181:3
+✖ actual Lampa 335 browser: Watch bypasses Trailers/KinoPub source menu on first load and return (3.240266ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:195:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:181:3
+✖ actual Lampa 335 tizen: Watch bypasses Trailers/KinoPub source menu on first load and return (3.245228ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:195:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:181:3
+✖ actual Lampa 335 android: Watch bypasses Trailers/KinoPub source menu on first load and return (4.65173ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:195:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/card-source.test.cjs:181:3
+✖ actual Lampa 335 webos: Watch bypasses Trailers/KinoPub source menu on first load and return (3.500299ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/card-source.test.cjs:195:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
