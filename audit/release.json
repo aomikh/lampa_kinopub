@@ -27,7 +27,9 @@
   "settings_reset": false,
   "shadowrocket_changed": false,
   "publication_status": "prepared review branch; main and Pages unchanged; approval required for the concrete commit",
-  "rollback": "switch test URL to mx.21; after deployment git revert the approved implementation commit",
+  "rollback": "switch extension URL to mx.21; after deployment revert both mx.22 branch commits in reverse order",
   "report": "audit/infuse-native-audio-mx22.md",
-  "device_checklist": "audit/apple-tv-verification-mx22.md"
+  "device_checklist": "audit/apple-tv-verification-mx22.md",
+  "review_code_commit": "498d58bdd9b6eb353c1910e4d4c3b6402f5f3c1b",
+  "test_plugin_delivery": "https://cdn.jsdelivr.net/gh/aomikh/lampa_kinopub@498d58bdd9b6eb353c1910e4d4c3b6402f5f3c1b/docs/kp.js"
 }

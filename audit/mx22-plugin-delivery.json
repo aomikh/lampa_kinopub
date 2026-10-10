@@ -1,0 +1,23 @@
+{
+  "checked_at_utc": "2026-10-10",
+  "code_commit": "498d58bdd9b6eb353c1910e4d4c3b6402f5f3c1b",
+  "bytes": 247791,
+  "sha256": "20b8a8990ecc54876748dfa98efe9b262be96d3158c7149114dee0ec7c236dd1",
+  "raw_github": {
+    "http_status": 200,
+    "content_type": "text/plain; charset=utf-8",
+    "x_content_type_options": "nosniff",
+    "recommended_for_script_src": false
+  },
+  "pinned_cdn": {
+    "url": "https://cdn.jsdelivr.net/gh/aomikh/lampa_kinopub@498d58bdd9b6eb353c1910e4d4c3b6402f5f3c1b/docs/kp.js",
+    "http_status": 200,
+    "content_type": "application/javascript; charset=utf-8",
+    "x_content_type_options": "nosniff",
+    "access_control_allow_origin": "*",
+    "matches_tested_bytes": true
+  },
+  "installed_on_apple_tv": false,
+  "main_changed": false,
+  "pages_changed": false
+}

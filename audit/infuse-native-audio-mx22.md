@@ -103,9 +103,11 @@ python3 tools/inspect_hls.py --file tests/fixtures/kinopub-hls4-master.redacted.
 
 Изменены docs/kp.js, тесты авторизации/Apple-адаптеров/runtime и документация установки/Pages/HANDOFF. Добавлены два JS-набора, HLS inspector, его Python-тесты, обезличенный master и результаты в audit. Серверы, зависимости, Shadowrocket, Safari-скрипт и другие репозитории не менялись.
 
-Для проверки до main используй сырой kp.js конкретного коммита отдельной ветки, одна активная копия расширения. После подтверждения публикации: Pages URL с `?v=1.0.73-mx.22`, полный перезапуск, проверка номера в существующей диагностике. Существующее устройство Infuse не отключай ради обновления описания.
+Для проверки до main используй закреплённый CDN-адрес кода `498d58b` из INSTALL_LAMPA_MX.md, одна активная копия расширения. В текущем ядре plugins.js → Utils.putScriptAsync загружает script src. GitHub Raw проверен: text/plain и nosniff, поэтому такая тестовая инструкция была исправлена отдельным коммитом. jsDelivr для точного SHA проверен: HTTP 200, application/javascript, CORS *, SHA-256 `20b8a8990ecc54876748dfa98efe9b262be96d3158c7149114dee0ec7c236dd1`, 247791 байт, как у проверенного локального файла. Это доставка расширения, без изменения видеопути. Ветка включает код и последующее уточнение инструкции; реальная установка на Apple TV не проверена. Сведения о доставке: mx22-plugin-delivery.json.
 
-Откат тестовой установки: заменить URL расширения на опубликованный mx.21 и полностью перезапустить Lampa. Откат после публикации: git revert коммита mx.22, затем обычный Pages deploy, без переписывания main. Новые диагностические ключи старой версии не мешают; рабочие токены mx.21 совместимы. Временный возврат native к прежнему формату возможен через существующую настройку HLS2, но не считается решением переключения аудио.
+После подтверждения публикации: Pages URL с `?v=1.0.73-mx.22`, полный перезапуск, проверка номера в существующей диагностике. Существующее устройство Infuse не отключай ради обновления описания.
+
+Откат тестовой установки: заменить URL расширения на опубликованный mx.21 и полностью перезапустить Lampa. Откат после публикации: git revert двух коммитов ветки mx.22 в обратном порядке, затем обычный Pages deploy, без переписывания main. Для изолированной ветки также можно подготовить совокупный обратный коммит через `git revert --no-commit d660ee7..HEAD`, проверить diff и закоммитить его. Диапазон не использовать, если в main уже появились посторонние коммиты. Новые диагностические ключи старой версии не мешают; рабочие токены mx.21 совместимы. Временный возврат native к прежнему формату возможен через существующую настройку HLS2, но не считается решением переключения аудио.
 
 ## Первичные источники
 
@@ -117,3 +119,5 @@ python3 tools/inspect_hls.py --file tests/fixtures/kinopub-hls4-master.redacted.
 - [Lampa: меню дорожек](https://github.com/yumata/lampa-source/blob/7cb2ce0ce320070785ca0be4f43a14f638c1d7d8/src/interaction/player/panel/option.js).
 - [Lampa: HLS backend](https://github.com/yumata/lampa-source/blob/7cb2ce0ce320070785ca0be4f43a14f638c1d7d8/src/interaction/player/video/hls.js).
 - [RFC 8216, EXT-X-MEDIA и AUDIO group](https://www.rfc-editor.org/rfc/rfc8216).
+- [Lampa: загрузчик расширений](https://github.com/yumata/lampa-source/blob/7cb2ce0ce320070785ca0be4f43a14f638c1d7d8/src/core/plugins.js) и [Utils.putScriptAsync](https://github.com/yumata/lampa-source/blob/7cb2ce0ce320070785ca0be4f43a14f638c1d7d8/src/utils/utils.js).
+- [jsDelivr: доставка GitHub commit по точному SHA](https://github.com/jsdelivr/jsdelivr#github).
