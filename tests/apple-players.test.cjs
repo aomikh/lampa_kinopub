@@ -7,7 +7,7 @@ const players = ['tvospro', 'tvos', 'tvosl', 'tvosSelect', 'vlc', 'senplayer', '
 const signed = 'https://video.example/private-fixture/2160.m3u8?sig=a%2Bb%2Fc%3D&k=a+b%25&x=?%26=';
 const files = [
   {quality: '2160p', file: '/fixture/2160.mp4', urls: {hls2: signed, hls4: signed + '&fmt=4', http: 'https://video.example/2160.mp4?sig=a%2B'}},
-  {quality: '1080p', urls: {hls2: 'https://video.example/1080.m3u8', http: 'https://video.example/1080.mp4'}}
+  {quality: '1080p', urls: {hls4:'https://video.example/1080-master.m3u8',hls2: 'https://video.example/1080.m3u8', http: 'https://video.example/1080.mp4'}}
 ];
 const subtitles = [{lang: 'en', url: 'https://sub.example/fixture.srt?sig=x%2B+y'}];
 function source(rt, serial = false) {
@@ -31,7 +31,7 @@ for (const player of players) test(player + ': one core handoff, exact maximum U
   view.options.onEnter(view.items[0]);
   assert.equal(rt.internal.length, 1); // Calls to Lampa.Player, not proof of native playback.
   const play = rt.internal[0];
-  assert.equal(play.url, signed);
+  assert.equal(play.url, ['tvospro','tvos','tvosl'].includes(player)?files[0].urls.hls4:signed);
   assert.equal(play.quality, undefined, 'Lampa must not overwrite the chosen URL with its stored quality');
   assert.equal(play.callback, undefined);
   assert.equal(play.error, undefined, 'Web-player retries must not control a delegated player');
@@ -50,9 +50,9 @@ test('native playlist keeps positions, subtitle and audio metadata without inter
   view.options.onEnter(view.items[1]);
   assert.equal(rt.playlists[0].length, 2);
   for (const play of rt.playlists[0]) {
-    assert.equal(play.url, signed); assert.equal(play.timeline.time, 237);
+    assert.equal(play.url, files[0].urls.hls4); assert.equal(play.timeline.time, 237);
     assert.equal(play.quality, undefined); assert.equal(play.callback, undefined); assert.equal(play.error, undefined);
-    assert.equal(play.voiceovers.length, 1); assert.equal(play.voiceovers[0].url, signed);
+    assert.equal(play.voiceovers,undefined,'native shell uses real source tracks');
     assert.equal(play.subtitles[0].url, subtitles[0].url);
   }
   assert.match(rt.internal[0].title, /s1e02/); assert.equal(marks(), 0);
@@ -64,15 +64,15 @@ test('native destination resolves maximum after a stored player changes, not fro
   view.items[0].quality = view.items[0]._kpListedQuality = '1080p ';
   rt.storage.player = 'tvosl';
   view.options.onEnter(view.items[0]);
-  assert.equal(rt.internal[0].url, signed);
+  assert.equal(rt.internal[0].url, files[0].urls.hls4);
 });
 
 test('explicit episode quality is identical in the main handoff and selected playlist entry', () => {
   const rt = native('tvos'); const {view} = source(rt, true);
   view.options.onEnter(view.items[1], {}, {quality: '1080p'});
-  assert.equal(rt.internal[0].url, files[1].urls.hls2);
-  assert.equal(rt.playlists[0][1].url, files[1].urls.hls2);
-  assert.equal(rt.playlists[0][0].url, signed);
+  assert.equal(rt.internal[0].url, files[1].urls.hls4);
+  assert.equal(rt.playlists[0][1].url, files[1].urls.hls4);
+  assert.equal(rt.playlists[0][0].url, files[0].urls.hls4);
 });
 
 test('explicit native quality and format survive; saved limits are not changed', () => {
@@ -83,7 +83,7 @@ test('explicit native quality and format survive; saved limits are not changed',
   assert.equal(rt.storage.kp_max_quality, '2160'); assert.equal(rt.storage.kp_format, 'http');
   const capped = native('tvos', {kp_max_quality: '1080'}); const second = source(capped);
   second.view.options.onEnter(second.view.items[0]);
-  assert.equal(capped.internal[0].url, files[1].urls.hls2);
+  assert.equal(capped.internal[0].url, files[1].urls.hls4);
 });
 
 test('native handoff failure reports once and neither retries nor marks watched', () => {

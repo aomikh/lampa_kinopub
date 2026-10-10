@@ -74,7 +74,7 @@ test('registration confirms the existing OAuth device; notify is metadata, not n
   assert.ok(rt.requests[0].url.endsWith('/device/info'));rt.requests[0].ok({device:{id:7,title:'Fixture'}});
   const notify=rt.requests.at(-1);assert.ok(notify.url.endsWith('/device/notify'));
   assert.equal(notify.params.headers.Authorization,'Bearer old-access');
-  assert.match(new URLSearchParams(notify.body).get('title'),/Lampa/);
+  assert.equal(new URLSearchParams(notify.body).get('title'),'Fixture','preserve a catalog custom title');
   notify.fail({status:503});assert.equal(ready,1);assert.equal(grants(rt).length,0);
   assert.equal(rt.requests.some(r=>r.url.endsWith('/oauth2/device')),false);
 });

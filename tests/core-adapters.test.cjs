@@ -1,7 +1,7 @@
 'use strict';
 // Execute the actual upstream JS adapter, not a native tvOS decoder.
 // git clone https://github.com/yumata/lampa-source <reference directory>
-// git -C <reference directory> checkout b4a13b6af7fe2f3bbbcb91f4eb434ab3378f8d5d
+// git -C <reference directory> checkout 7cb2ce0ce320070785ca0be4f43a14f638c1d7d8
 // LAMPA_SOURCE_DIR=<reference directory> node --test tests/core-adapters.test.cjs
 const {test} = require('node:test');
 const assert = require('node:assert/strict');

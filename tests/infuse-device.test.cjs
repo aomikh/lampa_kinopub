@@ -22,8 +22,11 @@ function verify(rt){
   assert.equal(body.has('serverLocation'),false);assert.equal(body.has('streamingType'),false);
   settings.ok({status:200});
   const notify=rt.requests.at(-1);assert.match(notify.url,/\/device\/notify$/);
-  assert.match(new URLSearchParams(notify.body).get('title'),/^Infuse \(Apple TV\)$/);
+  const identity=Object.fromEntries(new URLSearchParams(notify.body));
+  assert.equal(identity.title,'Lampa MX / Infuse / Apple TV');
   notify.ok({status:200});
+  const readback=rt.requests.at(-1);assert.match(readback.url,/\/device\/info$/);
+  readback.ok({device:{id:99,...identity}});
 }
 
 test('Infuse has independent refresh flights and logout never clears the catalog grant',()=>{
@@ -54,6 +57,7 @@ test('separate activation keeps existing catalog tokens and declares maximum-qua
   const rt=runtime({infuseLinked:false,storage:{kp_token:'catalog-access',kp_refresh:'catalog-refresh'}});let ready=0;
   rt.api.openAuthModal(()=>ready++,rt.api.KPInfuse);
   rt.requests[0].ok({code:'infuse-code',user_code:'ABCDEF',interval:5,expires_in:600});
+  assert.equal(new URLSearchParams(rt.requests[0].body).get('client_id'),'xbmc','reuse the existing client, do not invent a Lampa client id');
   assert.equal(rt.modals[0].title,'kp_infuse_login');rt.tickAll();
   rt.requests.at(-1).ok({access_token:'infuse-new',refresh_token:'infuse-new-refresh'});
   assert.equal(ready,0);verify(rt);assert.equal(ready,1);

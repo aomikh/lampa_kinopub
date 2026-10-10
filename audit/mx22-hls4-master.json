@@ -1,0 +1,208 @@
+{
+  "read_limit_bytes": 131073,
+  "wall_clock_limit_seconds": 15,
+  "result": {
+    "source": "local-file",
+    "manifest": {
+      "kind": "master",
+      "audio": [
+        {
+          "group": "audio1080",
+          "name": "01. Многоголосый. TVShows (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": true,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio1080",
+          "name": "02. Многоголосый (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio1080",
+          "name": "03. Многоголосый. 1W (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio1080",
+          "name": "04. Многоголосый. 1W (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio1080",
+          "name": "05. Оригинал (ENG)",
+          "language": "eng",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio1080",
+          "name": "Track 6 (RUS) AC3",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio720",
+          "name": "01. Многоголосый. TVShows (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": true,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio720",
+          "name": "02. Многоголосый (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio720",
+          "name": "03. Многоголосый. 1W (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio720",
+          "name": "04. Многоголосый. 1W (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio720",
+          "name": "05. Оригинал (ENG)",
+          "language": "eng",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio720",
+          "name": "Track 6 (RUS) AC3",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio480",
+          "name": "01. Многоголосый. TVShows (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": true,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio480",
+          "name": "02. Многоголосый (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio480",
+          "name": "03. Многоголосый. 1W (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio480",
+          "name": "04. Многоголосый. 1W (RUS)",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio480",
+          "name": "05. Оригинал (ENG)",
+          "language": "eng",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        },
+        {
+          "group": "audio480",
+          "name": "Track 6 (RUS) AC3",
+          "language": "rus",
+          "channels": null,
+          "default": false,
+          "autoselect": false,
+          "uri_present": true
+        }
+      ],
+      "variants": [
+        {
+          "resolution": "1920x960",
+          "bandwidth": "3317437",
+          "codecs": "avc1.640028,mp4a.40.2",
+          "video_range": "SDR",
+          "audio_group": "audio1080",
+          "subtitles_group": "sub",
+          "audio_count": 6,
+          "audio_group_exists": true
+        },
+        {
+          "resolution": "1280x640",
+          "bandwidth": "1339038",
+          "codecs": "avc1.640028,mp4a.40.2",
+          "video_range": "SDR",
+          "audio_group": "audio720",
+          "subtitles_group": "sub",
+          "audio_count": 6,
+          "audio_group_exists": true
+        },
+        {
+          "resolution": "720x360",
+          "bandwidth": "583071",
+          "codecs": "avc1.640028,mp4a.40.2",
+          "video_range": "SDR",
+          "audio_group": "audio480",
+          "subtitles_group": "sub",
+          "audio_count": 6,
+          "audio_group_exists": true
+        }
+      ],
+      "embedded_tracks": "not-inspected",
+      "native_playback_tested": false
+    }
+  }
+}

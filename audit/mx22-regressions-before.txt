@@ -1,0 +1,339 @@
+✖ Infuse description names the integration, contains only documented fields and is read back before readiness (10.064391ms)
+✖ body-level notify rejection cannot confirm the identity and keeps the registration (2.583223ms)
+✖ temporary notify failure retains tokens but cannot claim the new description is verified (3.707882ms)
+✖ readback with another id cannot confirm the device (2.713384ms)
+✖ a copied or colliding catalog grant must never rename the catalog as Infuse (4.192286ms)
+✖ catalog notification keeps the existing custom device name (2.832143ms)
+✖ logout forgets only that profile identity and a late check cannot restore it (2.785312ms)
+✖ an old-token successful link response after rotation is retried rather than handed out (3.098269ms)
+✖ a cancelled request waiting for a shared refresh does not issue a retry (4.514007ms)
+✖ iPad desktop user agent is identified without pretending it is an iPhone (3.326321ms)
+✖ tvosl: full multi-audio source reaches the adapter without decorative voiceovers (10.650594ms)
+✖ tvos: full multi-audio source reaches the adapter without decorative voiceovers (2.931843ms)
+✖ tvospro: full multi-audio source reaches the adapter without decorative voiceovers (3.597661ms)
+✖ browser audio discovery is not replaced with one fake voiceover (3.606057ms)
+✔ explicit native source preference remains intact and Infuse still uses a direct file (6.049137ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 1
+ℹ fail 14
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 126.880514
+
+✖ failing tests:
+
+test at tests/device-identity-races.test.cjs:19:1
+✖ Infuse description names the integration, contains only documented fields and is read back before readiness (10.064391ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'Infuse (Apple TV)'
+  - 'Lampa MX / Infuse / Apple TV'
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:24:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Infuse (Apple TV)',
+    expected: 'Lampa MX / Infuse / Apple TV',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:33:1
+✖ body-level notify rejection cannot confirm the identity and keeps the registration (2.583223ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:37:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:40:1
+✖ temporary notify failure retains tokens but cannot claim the new description is verified (3.707882ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:44:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:48:1
+✖ readback with another id cannot confirm the device (2.713384ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\/device\/info$/. Input:
+
+  'https://api.service-kp.com/v1/device/notify'
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:52:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://api.service-kp.com/v1/device/notify',
+    expected: /\/device\/info$/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:56:1
+✖ a copied or colliding catalog grant must never rename the catalog as Infuse (4.192286ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  0 !== 1
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:61:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:66:1
+✖ catalog notification keeps the existing custom device name (2.832143ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'Lampa (Apple TV)'
+  - 'My living room'
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:69:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Lampa (Apple TV)',
+    expected: 'My living room',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:71:1
+✖ logout forgets only that profile identity and a late check cannot restore it (2.785312ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== ''
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:77:32)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:80:1
+✖ an old-token successful link response after rotation is retried rather than handed out (3.098269ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'https://cdn.example/old.mp4'
+  - undefined
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:86:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://cdn.example/old.mp4',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:89:1
+✖ a cancelled request waiting for a shared refresh does not issue a retry (4.514007ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  3 !== 2
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:94:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/device-identity-races.test.cjs:97:1
+✖ iPad desktop user agent is identified without pretending it is an iPhone (3.326321ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'iOS' !== 'iPad'
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/device-identity-races.test.cjs:100:31)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'iOS',
+    expected: 'iPad',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/native-audio-source.test.cjs:17:49
+✖ tvosl: full multi-audio source reaches the adapter without decorative voiceovers (10.650594ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'https://cdn.example/single.m3u8'
+  - 'https://cdn.example/master.m3u8?sig=a%2B+b'
+                         ^
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/native-audio-source.test.cjs:21:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://cdn.example/single.m3u8',
+    expected: 'https://cdn.example/master.m3u8?sig=a%2B+b',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/native-audio-source.test.cjs:17:49
+✖ tvos: full multi-audio source reaches the adapter without decorative voiceovers (2.931843ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'https://cdn.example/single.m3u8'
+  - 'https://cdn.example/master.m3u8?sig=a%2B+b'
+                         ^
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/native-audio-source.test.cjs:21:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://cdn.example/single.m3u8',
+    expected: 'https://cdn.example/master.m3u8?sig=a%2B+b',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/native-audio-source.test.cjs:17:49
+✖ tvospro: full multi-audio source reaches the adapter without decorative voiceovers (3.597661ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'https://cdn.example/single.m3u8'
+  - 'https://cdn.example/master.m3u8?sig=a%2B+b'
+                         ^
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/native-audio-source.test.cjs:21:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://cdn.example/single.m3u8',
+    expected: 'https://cdn.example/master.m3u8?sig=a%2B+b',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/native-audio-source.test.cjs:28:1
+✖ browser audio discovery is not replaced with one fake voiceover (3.606057ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + [
+  +   {
+  +     default: true,
+  +     index: 0,
+  +     name: '01 - UNK - Studio A',
+  +     url: 'https://cdn.example/single.m3u8'
+  +   }
+  + ]
+  - undefined
+
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/native-audio-source.test.cjs:30:45)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { name: '01 - UNK - Studio A', url: 'https://cdn.example/single.m3u8', index: 0, default: true } ],
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.21';
+  var PLUGIN_VERSION  = '1.0.73-mx.22';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -168,7 +168,9 @@
     // One local, secret-free checkpoint. It describes link preparation and
     // scheme dispatch only; the JS plugin cannot observe native playback.
     var record = { version: PLUGIN_VERSION, stage: stage, format: format,
-      quality: quality || null, entries: entries || 0, playbackConfirmed: false };
+      quality: quality || null, entries: entries || 0, playbackConfirmed: false,
+      at: Date.now(), deviceId: KPInfuse.deviceId() || null,
+      accessExpiresAt: Number(Lampa.Storage.get('kp_infuse_token_expires_at_v1', 0)) || null };
     Lampa.Storage.set(KEY_INFUSE_ATTEMPT, record);
     Logger.info('infuse', 'link handoff stage (playback unconfirmed)', record);
   }
@@ -503,12 +505,30 @@
    *  KINOPUB API                                                 *
    * ============================================================ */
 
+  // Content requests share token rotation, but cancelling one source must
+  // cancel its retries, not the device-wide rotation used by other sources.
+  function networkGuard(network) {
+    if (!network) return function () { return true; };
+    if (!network._kpCancelGuard) {
+      var clear = network.clear;
+      var guard = network._kpCancelGuard = { revision: 0 };
+      network.clear = function () {
+        guard.revision++;
+        return clear.apply(this, arguments);
+      };
+    }
+    var revision = network._kpCancelGuard.revision;
+    return function () { return revision === network._kpCancelGuard.revision; };
+  }
+
   function createKP(infuse) {
     // Each OAuth grant is a separate KinoPub device. Never copy the catalog's
     // tokens to this profile or rename the catalog's existing registration.
     var KEY_TOKEN = infuse ? 'kp_infuse_token_v1' : 'kp_token';
     var KEY_REFRESH = infuse ? 'kp_infuse_refresh_v1' : 'kp_refresh';
     var KEY_TOKEN_EXPIRY = infuse ? 'kp_infuse_token_expires_at_v1' : 'kp_token_expires_at_v1';
+    var KEY_DEVICE_ID = infuse ? 'kp_infuse_device_id_v1' : 'kp_device_id_v1';
+    var KEY_DEVICE_INFO = infuse ? 'kp_infuse_device_info_v1' : 'kp_device_info_v1';
 
     var authRevision = 0;
     var deviceRevision = -1;
@@ -524,6 +544,7 @@
     }
     function setTokens(access, refresh, expires) {
       authRevision++;
+      forgetDevice();
       Lampa.Storage.set(KEY_REFRESH, '');
       saveTokens(access, refresh, expires);
       if (refreshFlight) {
@@ -533,6 +554,7 @@
     }
     function clearTokens() {
       authRevision++;
+      forgetDevice();
       Lampa.Storage.set(KEY_TOKEN, '');
       Lampa.Storage.set(KEY_REFRESH, '');
       Lampa.Storage.set(KEY_TOKEN_EXPIRY, 0);
@@ -540,6 +562,21 @@
         refreshFlight.net.clear();
         refreshFlight.finish(null, { status: 401 }, 'auth_changed');
       }
+    }
+    function forgetDevice() {
+      deviceRevision = -1;
+      Lampa.Storage.set(KEY_DEVICE_ID, '');
+      Lampa.Storage.set(KEY_DEVICE_INFO, null);
+    }
+    function rememberDevice(device, confirmed) {
+      if (!confirmed) deviceRevision = -1;
+      Lampa.Storage.set(KEY_DEVICE_ID, device.id);
+      Lampa.Storage.set(KEY_DEVICE_INFO, {
+        id: device.id, title: device.title || '', hardware: device.hardware || '',
+        software: device.software || '',
+        isBrowser: device.is_browser == null ? null : device.is_browser,
+        identityConfirmed: !!confirmed, checkedAt: Date.now()
+      });
     }
 
     function proxify(url) {
@@ -563,6 +600,7 @@
      */
     function call(method, url, postData, headers, network, success, error, timeoutMs) {
       var net = network || new Lampa.Reguest();
+      var current = networkGuard(net);
       net.timeout(timeoutMs || 15000);
 
       var params = { headers: headers || {} };
@@ -574,8 +612,10 @@
 
       // .silent(url, complite, error, post_data?, params?) — params.headers supported.
       net.silent(fullUrl, function (json) {
+        if (!current()) return;
         success(json);
       }, function (xhr, status) {
+        if (!current()) return;
         error(xhr || {}, status);
       }, postData || false, params);
     }
@@ -628,6 +668,7 @@
           }
         },
         function (xhr, status) {
+          if (revision !== authRevision || (isActive && !isActive())) return;
           var resp = null;
           try { resp = JSON.parse(xhr && xhr.responseText || ''); } catch (e) {}
           if (resp && (resp.error === 'authorization_pending' || resp.error === 'slow_down')) {
@@ -698,6 +739,7 @@
               xhr && (xhr.status === 400 || xhr.status === 401) && body &&
               /^(invalid_grant|invalid_token)$/.test(body.error)) {
             authRevision++;
+            forgetDevice();
             saveTokens('', '', 0);
             Lampa.Storage.set(KEY_REFRESH, '');
           }
@@ -713,9 +755,11 @@
      * recursion if the refreshed token keeps getting rejected.
      */
     function api(network, path, params, success, error, _retried) {
+      var current = networkGuard(network);
       var expiry = Number(Lampa.Storage.get(KEY_TOKEN_EXPIRY, 0));
       if (!_retried && tokenRefresh() && expiry && expiry <= Date.now() + 30000) {
-        refresh(network, function () { api(network, path, params, success, error, true); }, error);
+        refresh(network, function () { if (current()) api(network, path, params, success, error, true); },
+          function (xhr, status) { if (current() && error) error(xhr, status); });
         return;
       }
       var revision = authRevision;
@@ -743,6 +787,14 @@
         network,
         function (json) {
           if (revision !== authRevision) { if (error) error({}, 'auth_changed'); return; }
+          // A signed link returned with a token rotated in the meantime is
+          // not used. Retry this read once under the current grant. This is
+          // link freshness, not a claim about the CDN's expiry policy.
+          if (tokenAccess() !== t) {
+            if (!_retried && tokenAccess()) api(network, path, params, success, error, true);
+            else if (error) error({}, 'token_changed');
+            return;
+          }
           Logger.debug('api', 'GET ' + path + ' ok');
           success(json);
         },
@@ -758,8 +810,8 @@
               api(network, path, params, success, error, true); return;
             }
             refresh(network, function () {
-              api(network, path, params, success, error, true);
-            }, error);
+              if (current()) api(network, path, params, success, error, true);
+            }, function (xhr, status) { if (current() && error) error(xhr, status); });
           } else {
             if (error) error(xhr, status);
           }
@@ -773,9 +825,11 @@
      * Used for settings updates. Body is x-www-form-urlencoded.
      */
     function apiPost(network, path, body, success, error, _retried) {
+      var current = networkGuard(network);
       var expiry = Number(Lampa.Storage.get(KEY_TOKEN_EXPIRY, 0));
       if (!_retried && tokenRefresh() && expiry && expiry <= Date.now() + 30000) {
-        refresh(network, function () { apiPost(network, path, body, success, error, true); }, error);
+        refresh(network, function () { if (current()) apiPost(network, path, body, success, error, true); },
+          function (xhr, status) { if (current() && error) error(xhr, status); });
         return;
       }
       var revision = authRevision;
@@ -815,8 +869,8 @@
               apiPost(network, path, body, success, error, true); return;
             }
             refresh(network, function () {
-              apiPost(network, path, body, success, error, true);
-            }, error);
+              if (current()) apiPost(network, path, body, success, error, true);
+            }, function (xhr, status) { if (current() && error) error(xhr, status); });
           } else {
             if (error) error(xhr, status);
           }
@@ -830,6 +884,9 @@
       hasToken:        function () { return !!tokenAccess(); },
       deviceReady:     function () { return !!tokenAccess() && deviceRevision === authRevision; },
       setDeviceReady:  function () { deviceRevision = authRevision; },
+      revision:        function () { return authRevision; },
+      deviceId:        function () { return Lampa.Storage.get(KEY_DEVICE_ID, ''); },
+      rememberDevice:  rememberDevice,
       clearTokens:     clearTokens,
       deviceCode:      deviceCode,
       pollDeviceToken: pollDeviceToken,
@@ -906,10 +963,13 @@
         hardware = 'Apple TV';
         title = 'Lampa (Apple TV)';
       } else if (Lampa.Platform.is('apple')) {
-        platform = 'ios';
+        var ipad = /iPad/i.test(ua) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        platform = ipad ? 'ipados' : 'ios';
         var mi = ua.match(/OS\s+([\d_]+)/i);
-        hardware = 'iOS' + (mi ? ' ' + mi[1].replace(/_/g, '.') : '');
-        title = 'Lampa (iOS)';
+        hardware = ipad ? 'iPad' : /iPhone/i.test(ua) ? 'iPhone' :
+          /iPod/i.test(ua) ? 'iPod' : 'Apple iOS/iPadOS';
+        title = 'Lampa (' + hardware + ')';
       } else {
         var br = ua.match(/(Edg|Chrome|Firefox|Safari|Opera)\/([\d.]+)/);
         hardware = br ? br[1].replace('Edg', 'Edge') + ' ' + br[2] : 'Web Browser';
@@ -920,56 +980,115 @@
     var lampaVer = (Lampa.Manifest && Lampa.Manifest.app_digital)
       ? 'Lampa ' + Lampa.Manifest.app_digital
       : 'Lampa';
-    var software = 'kp.js ' + PLUGIN_VERSION + ' / ' + lampaVer;
+    var software = 'Lampa MX / kp.js ' + PLUGIN_VERSION + ' / ' + lampaVer;
+    if (mi) software += ' / ' + (ipad ? 'iPadOS ' : 'iOS ') + mi[1].replace(/_/g, '.');
 
     return { title: title, hardware: hardware, software: software, _platform: platform };
   }
 
   /**
-   * Send identity to kinopub. Idempotent — fine to call on every startup.
-   * Failures are logged but never blocked further work.
+   * Confirm the OAuth grant, notify its description, then read it back.
+   * Each profile has one in-flight check; a cancelled source cannot resume
+   * from its result. Transient failures never discard the registration.
    */
+  var identityFlights = [];
   function notifyDeviceIdentity(network, ready, error, client) {
     client = client || KP;
     if (!client.hasToken()) { if (error) error({}, 'no_token'); return; }
+    if (client === KPInfuse && client.tokenAccess() === KP.tokenAccess()) {
+      if (error) error({}, 'device_collision'); return;
+    }
+    var key = client === KPInfuse ? 1 : 0;
+    var current = networkGuard(network);
+    var waiter = { ready: ready, error: error, current: current };
+    var flight = identityFlights[key];
+    if (flight && flight.revision === client.revision()) { flight.waiters.push(waiter); return; }
+    if (flight) { flight.net.clear(); flight.finish(false, {}, 'auth_changed'); }
+    flight = { revision: client.revision(), net: new Lampa.Reguest(), waiters: [waiter], done: false };
+    identityFlights[key] = flight;
+    flight.finish = function (ok, xhr, status) {
+      if (flight.done) return;
+      flight.done = true;
+      if (identityFlights[key] === flight) identityFlights[key] = null;
+      flight.waiters.forEach(function (w) {
+        if (!w.current()) return;
+        try {
+          if (ok) { if (w.ready) w.ready(); }
+          else if (w.error) w.error(xhr || {}, status);
+        } catch (e) { Logger.warn('identity', 'identity callback failed'); }
+      });
+    };
+    // This network belongs to the grant, not to a source destroyed while a
+    // concurrent startup check is still awaiting the same verification.
+    network = flight.net;
     var info = detectDeviceInfo();
     if (client === KPInfuse) {
-      info.title = 'Infuse (' + info.hardware + ')';
-      info.software += ' / external Infuse via Lampa';
+      info.title = 'Lampa MX / Infuse / ' + info.hardware;
+      info.software += ' / external Infuse';
+    }
+    delete info._platform; // Only the three documented notify fields.
+    function parsed(response) {
+      if (typeof response === 'string') { try { return JSON.parse(response); } catch (e) { return null; } }
+      return response;
+    }
+    function failed(xhr, status) { flight.finish(false, xhr, status); }
+    function accepted(response) {
+      return response && !response.error && !(Number(response.status) >= 400);
     }
     client.deviceInfo(network, function (response) {
-      if (typeof response === 'string') { try { response = JSON.parse(response); } catch (e) {} }
-      if (!response || !response.device || !response.device.id) {
+      response = parsed(response);
+      if (!accepted(response) || !response.device || !response.device.id) {
         Logger.warn('identity', 'linked device not confirmed');
-        if (error) error({}, 'no_device');
+        failed({}, 'no_device');
         return;
       }
-      Logger.info('identity', 'linked API device confirmed');
+      var deviceId = response.device.id;
+      if (client === KPInfuse && KP.deviceId() && String(deviceId) === String(KP.deviceId())) {
+        failed({}, 'device_collision'); return;
+      }
+      // A custom catalog title must not be replaced while preparing Infuse.
+      if (client === KP && response.device.title) info.title = response.device.title;
+      client.rememberDevice(response.device, false);
+      Logger.info('identity', 'linked API device confirmed', { profile: key ? 'infuse' : 'catalog', deviceId: deviceId });
+      function confirmed(device) {
+        client.rememberDevice(device, true);
+        client.setDeviceReady();
+        Logger.info('identity', 'description read back', { profile: key ? 'infuse' : 'catalog', deviceId: deviceId });
+        flight.finish(true);
+      }
       function notify() {
-        client.deviceNotify(network, info, function () {
-          Logger.info('identity', 'notify ok');
-          client.setDeviceReady();
-          if (ready) ready();
+        client.deviceNotify(network, info, function (result) {
+          if (!accepted(parsed(result))) { failed({}, 'device_notify'); return; }
+          if (client === KP) {
+            // Catalog playback does not depend on a descriptive update.
+            client.setDeviceReady(); flight.finish(true); return;
+          }
+          client.deviceInfo(network, function (check) {
+            check = parsed(check);
+            var device = check && check.device;
+            if (!accepted(check) || !device || String(device.id) !== String(deviceId) ||
+                device.title !== info.title || device.hardware !== info.hardware || device.software !== info.software) {
+              failed({}, 'identity_mismatch'); return;
+            }
+            confirmed(device);
+          }, failed);
         }, function (xhr, status) {
-          // Descriptive metadata can fail temporarily. Capability failure or
-          // a revoked device must never be reported as ready for maximum quality.
           Logger.warn('identity', 'notify failed', { http: xhr && xhr.status, status: status });
-          if (status === 'auth_changed' || !client.hasToken()) { if (error) error(xhr, status); return; }
+          if (client === KPInfuse || status === 'auth_changed' || !client.hasToken()) { failed(xhr, status); return; }
           client.setDeviceReady();
-          if (ready) ready();
+          flight.finish(true);
         });
       }
       if (client === KPInfuse) {
-        client.saveDeviceSettings(network, response.device.id,
+        client.saveDeviceSettings(network, deviceId,
           { support4k: 1, supportHevc: 1, supportHdr: 1 }, function (result) {
-            if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
-            if (!result || Number(result.status) >= 400) { if (error) error({}, 'device_settings'); return; }
+            if (!accepted(parsed(result))) { failed({}, 'device_settings'); return; }
             notify();
-          }, function (xhr, status) { if (error) error(xhr, status); });
+          }, failed);
       } else notify();
     }, function (xhr, status) {
       Logger.warn('identity', 'device check failed', { http: xhr && xhr.status, status: status });
-      if (error) error(xhr, status);
+      failed(xhr, status);
     });
   }
 
@@ -1849,6 +1968,11 @@
         .indexOf(detectActualPlayer(player)) !== -1;
   }
 
+  function isTVOSNativePlayer(player) {
+    return Lampa.Platform.is('apple_tv') &&
+      ['tvospro', 'tvos', 'tvosl'].indexOf(detectActualPlayer(player)) !== -1;
+  }
+
   /**
    * Resolves the URL field key (http|hls|hls2|hls4) to use when picking a stream.
    *
@@ -1890,8 +2014,10 @@
     var setting = Lampa.Storage.get(KEY_FORMAT, 'auto');
     if (setting && setting !== 'auto') return setting;
 
-    // Auto: HLS2 for both Tizen native and Lampa-built-in.
-    var resolved = 'hls2';
+    // The tvOS shell needs the complete server master with its audio groups.
+    // It owns audio selection. HLS4 is not applied to Infuse, generic external
+    // apps, browser playback or Tizen, and explicit format choices win above.
+    var resolved = isTVOSNativePlayer(player) ? 'hls4' : 'hls2';
     var key = player + '|' + resolved;
     if (lastAutoFormatLogKey !== key) {
       Logger.info('format', 'auto resolved', { player: player || '(default)', format: resolved });
@@ -2109,6 +2235,9 @@
 
   function voiceChipsHtml(audios, activeKey, watchedKey, hasProgress) {
     if (!audios || !audios.length) return '';
+    // A saved JS preference is not a report of the native shell's selected
+    // track. Keep the API descriptions visible without a false selection.
+    if (isTVOSNativePlayer()) { activeKey = ''; watchedKey = ''; }
 
     // chipKey for codec-twin dedup is the first 3 fields of voiceKey
     // ("lang|type|author"). voiceKey is "lang|type|author|codec|index".
@@ -2359,6 +2488,22 @@
     // Missing delivery at the maximum must not silently choose a lower file.
     return { url: url, quality: {}, currentQuality: highest, label: file.label,
       file: file.file, format: format };
+  }
+
+  function pickNativeStream(files, format, target) {
+    if (!files || !files.length) return null;
+    var wanted = target == null ? null : parseInt(String(target).replace(/[^0-9]/g, ''), 10);
+    // Choose the requested file before checking its format. A missing HLS4
+    // must not become another file or a video-only HLS2 rendition.
+    var avail = files.filter(function (f) {
+      return wanted == null ? f.quality <= maxQuality() : f.quality === wanted;
+    });
+    if (!avail.length) return null;
+    var best = avail[0];
+    var url = mediaUrl(best.urls && best.urls[format]);
+    if (!url) return null;
+    return { url: url, quality: {}, currentQuality: best.quality,
+      label: best.label, file: best.file, format: format };
   }
 
   function buildSubtitles(subs) {
@@ -3096,10 +3241,12 @@
         voices = voiceListFromAudios([extract.movie.audios]);
       }
 
-      voices.forEach(function (v) {
-        filterItems.voice.push(v.label);
-        filterItems.voice_keys.push(v.key);
-      });
+      if (!isTVOSNativePlayer()) {
+        voices.forEach(function (v) {
+          filterItems.voice.push(v.label);
+          filterItems.voice_keys.push(v.key);
+        });
+      }
 
       // Per-season-of-series voice memory. When user changes season, the
       // voice they had picked for THAT season takes priority over whatever
@@ -3152,7 +3299,8 @@
         var season = extract.seasons[choice.season];
         if (!season) return [];
         return season.episodes.map(function (ep) {
-          var stream = player === 'infuse' ? pickInfuseStream(ep.files, fmt) : pickStream(ep.files, fmt);
+          var stream = player === 'infuse' ? pickInfuseStream(ep.files, fmt) :
+            isTVOSNativePlayer(player) ? pickNativeStream(ep.files, fmt) : pickStream(ep.files, fmt);
           return {
             kp:           { kind: 'episode', files: ep.files, audios: ep.audios, subtitles: ep.subtitles },
             episode:      ep.number,
@@ -3176,7 +3324,8 @@
           };
         });
       } else if (extract.type === 'movie' && extract.movie) {
-        var stream2 = player === 'infuse' ? pickInfuseStream(extract.movie.files, fmt) : pickStream(extract.movie.files, fmt);
+        var stream2 = player === 'infuse' ? pickInfuseStream(extract.movie.files, fmt) :
+          isTVOSNativePlayer(player) ? pickNativeStream(extract.movie.files, fmt) : pickStream(extract.movie.files, fmt);
         return [{
           kp:          { kind: 'movie', files: extract.movie.files, audios: extract.movie.audios, subtitles: extract.movie.subtitles },
           title:       (object.movie && (object.movie.title || object.movie.name)) || '',
@@ -3195,7 +3344,8 @@
       var fmt = preferredFormat(player);
       if (player === 'infuse' && !fmt) return null;
       var stream = player === 'infuse' ? pickInfuseStream(element.kp.files, fmt) :
-        pickStream(element.kp.files, fmt, target);
+        isTVOSNativePlayer(player) ? pickNativeStream(element.kp.files, fmt, target) :
+          pickStream(element.kp.files, fmt, target);
       if (!stream) {
         Logger.warn('source', 'no stream picked', { kind: element.kp.kind, fmt: fmt });
         return null;
@@ -3298,10 +3448,8 @@
       // pendingVoice for the PlayerVideo.canplay hook to apply via
       // setSelectTrack / hls.audioTrack — without restarting the stream.
       //
-      // We still pass play.voiceovers but with ONE entry (the active voice).
-      // Two reasons to keep at least one entry:
-      //   1. Empty voiceovers on Tizen broke the player lifecycle in v1.0.12.
-      //   2. Single entry keeps player UI showing the active voice as label.
+      // Tizen's proxy path retains its existing voiceover callbacks. Native
+      // tvOS receives a complete source and uses its own playback menu.
       var player   = actualPlayer;
       var audios   = element.kp.audios || [];
       var voiceIdx = -1;
@@ -3321,13 +3469,12 @@
       // Stash voice index on play element so onEnter (which sees this play
       // before the playlist loop overwrites pendingVoice) can read the
       // CLICKED item's voice index without depending on pendingVoice.
-      play._voiceIdx = voiceIdx;
+      if (!delegated) play._voiceIdx = voiceIdx;
       if (KP_BARE_MODE) {
         // BARE mode: do NOT set play.voiceovers, play.translate, pendingVoice
         // or currentVoiceLabel. Lampa receives a vanilla play-element. Voice
-        // selection from the filter still affects WHICH stream URL we pass
-        // (stream.url is built from choice.voice_key earlier), but no
-        // post-play track manipulation happens.
+        // selection affects the URL only when a confirmed proxy path is
+        // enabled; native direct/master URLs do not encode a JS voice choice.
         pendingVoice = null;
         currentVoiceLabel = '';
       } else {
@@ -3340,7 +3487,13 @@
         if (delegated) currentVoiceLabel = '';
         else if (pickedLabel) currentVoiceLabel = pickedLabel;
 
-        if (voiceIdx >= 0) {
+        // A single fake voiceover suppresses tracks detected by the actual
+        // browser backend. A tvOS shell also cannot use its JS onSelect hook.
+        // Leave both menus to the playback backend, with the full source.
+        var backendTracks = delegated || ((Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) &&
+          ['inner', 'lampa'].indexOf(player) !== -1);
+        if (backendTracks) currentVoiceLabel = '';
+        if (voiceIdx >= 0 && !backendTracks) {
           if (useManifestProxy(player) && audios.length > 0) {
             // v1.0.31: Multi-entry voiceovers with onSelect callback.
             // Each voice is a different proxy URL (same kinopub master,
@@ -3494,7 +3647,20 @@
             } catch (e) { Logger.warn('voice', 'remember failed', String(e)); }
           }
 
-          if (playlist.length > 1) play.playlist = playlist;
+          if (isTVOSNativePlayer(actualPlayer)) {
+            // The core serializes playlist, not the root timeline/subtitles.
+            // Include a movie as one entry as well; avoid a circular reference.
+            var nativeEntry = {};
+            Object.keys(play).forEach(function (k) { if (k !== 'playlist') nativeEntry[k] = play[k]; });
+            var selectedIndex = playlistSrc.indexOf(item);
+            if (selectedIndex >= 0) playlist[selectedIndex] = nativeEntry;
+            else playlist = [nativeEntry];
+            play.playlist = playlist;
+            Logger.info('voice', 'native shell owns track selection', {
+              player: actualPlayer, format: preferredFormat(actualPlayer),
+              apiAudioCount: (item.kp.audios || []).length, playbackConfirmed: false
+            });
+          } else if (playlist.length > 1) play.playlist = playlist;
           Logger.info('player', 'launching', { url: play.url, playlist: playlist.length, title: play.title });
           if (isAppleDelegatedPlayer(actualPlayer)) {
             // The destination owns media requests. Do not fetch a manifest (or

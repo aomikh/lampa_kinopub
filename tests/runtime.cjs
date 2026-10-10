@@ -77,7 +77,7 @@ function runtime(options = {}) {
     Modal: {open: modal => modals.push(modal), close() {}}
   };
   const sandbox = {URL, Image: FakeImage, XMLHttpRequest: FakeXMLHttpRequest, console: Object.fromEntries(['log','warn','error'].map(k => [k,(...args) => logs.push(args)])),
-    navigator: {userAgent: 'test'}, $, Lampa, document: {},
+    navigator: {userAgent: options.userAgent || 'test', platform: options.navigatorPlatform || '', maxTouchPoints: options.maxTouchPoints || 0}, $, Lampa, document: {},
     setTimeout: setTimer, clearTimeout: id => timers.delete(id), setInterval: setTimer, clearInterval: id => timers.delete(id),
     window: {Lampa,innerWidth:1920, fetch:options.fetch, AbortController:globalThis.AbortController,
       addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};

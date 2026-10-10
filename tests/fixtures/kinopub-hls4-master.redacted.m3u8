@@ -1,0 +1,30 @@
+#EXTM3U
+#EXT-X-VERSION:4
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="sub",NAME="RUS #01",LANGUAGE="rus",URI="https://media.example/rendition-1.m3u8"
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="sub",NAME="ENG #02",LANGUAGE="eng",URI="https://media.example/rendition-2.m3u8"
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="sub",NAME="ENG #03",LANGUAGE="eng",URI="https://media.example/rendition-3.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio1080",NAME="01. Многоголосый. TVShows (RUS)",LANGUAGE="rus",DEFAULT=YES,URI="https://media.example/rendition-4.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio1080",NAME="02. Многоголосый (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-5.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio1080",NAME="03. Многоголосый. 1W (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-6.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio1080",NAME="04. Многоголосый. 1W (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-7.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio1080",NAME="05. Оригинал (ENG)",LANGUAGE="eng",DEFAULT=NO,URI="https://media.example/rendition-8.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio1080",NAME="Track 6 (RUS) AC3",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-9.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio720",NAME="01. Многоголосый. TVShows (RUS)",LANGUAGE="rus",DEFAULT=YES,URI="https://media.example/rendition-10.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio720",NAME="02. Многоголосый (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-11.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio720",NAME="03. Многоголосый. 1W (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-12.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio720",NAME="04. Многоголосый. 1W (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-13.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio720",NAME="05. Оригинал (ENG)",LANGUAGE="eng",DEFAULT=NO,URI="https://media.example/rendition-14.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio720",NAME="Track 6 (RUS) AC3",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-15.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio480",NAME="01. Многоголосый. TVShows (RUS)",LANGUAGE="rus",DEFAULT=YES,URI="https://media.example/rendition-16.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio480",NAME="02. Многоголосый (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-17.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio480",NAME="03. Многоголосый. 1W (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-18.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio480",NAME="04. Многоголосый. 1W (RUS)",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-19.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio480",NAME="05. Оригинал (ENG)",LANGUAGE="eng",DEFAULT=NO,URI="https://media.example/rendition-20.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio480",NAME="Track 6 (RUS) AC3",LANGUAGE="rus",DEFAULT=NO,URI="https://media.example/rendition-21.m3u8"
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3317437,VIDEO-RANGE=SDR,RESOLUTION=1920x960,CODECS="avc1.640028,mp4a.40.2",FRAME-RATE=23.976,HDCP-LEVEL=NONE,AUDIO="audio1080",SUBTITLES="sub"
+https://media.example/variant-25.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1339038,VIDEO-RANGE=SDR,RESOLUTION=1280x640,CODECS="avc1.640028,mp4a.40.2",FRAME-RATE=23.976,HDCP-LEVEL=NONE,AUDIO="audio720",SUBTITLES="sub"
+https://media.example/variant-27.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=583071,VIDEO-RANGE=SDR,RESOLUTION=720x360,CODECS="avc1.640028,mp4a.40.2",FRAME-RATE=23.976,HDCP-LEVEL=NONE,AUDIO="audio480",SUBTITLES="sub"
+https://media.example/variant-29.m3u8

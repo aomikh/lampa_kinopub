@@ -5,9 +5,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {runtime}=require('./runtime.cjs');
 
-test('mx.21 does not restore obsolete Infuse experiments, probing or launch tracing',()=>{
+test('mx.22 does not restore obsolete Infuse experiments, probing or launch tracing',()=>{
   const code=fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
-  assert.match(code,/PLUGIN_VERSION\s*=\s*'1\.0\.73-mx\.21'/);
+  assert.match(code,/PLUGIN_VERSION\s*=\s*'1\.0\.73-mx\.22'/);
   assert.doesNotMatch(code,/infuseFileNetwork|earlyFile|deferAuthRefresh/);
   assert.doesNotMatch(code,/LaunchTrace|lastInfuseAttempt|probeInfuseResource|showInfuseDiagnostic|infuseHls2Test|InfuseVlcSource|kp_launch_trace|kp_infuse_delivery|kp_action_infuse_check|kp_trace_/);
 });
