@@ -39,9 +39,9 @@ test('browser audio discovery is not replaced with one fake voiceover',()=>{
  const rt=runtime({storage:{kp_token:'catalog',player:'inner'}});const {view}=source(rt);
  view.options.onEnter(view.items[0]);assert.equal(rt.internal[0].voiceovers,undefined);
 });
-test('explicit native source preference remains intact and Infuse still uses a direct file',()=>{
+test('explicit native and other player source preferences remain intact',()=>{
  const rt=runtime({storage:{player:'tvos',kp_format:'hls2'}});
- assert.equal(rt.api.preferredFormat('tvos'),'hls2');assert.equal(rt.api.preferredFormat('infuse'),'http');
+ assert.equal(rt.api.preferredFormat('tvos'),'hls2');assert.equal(rt.api.preferredFormat('infuse'),'hls2');
  assert.equal(rt.api.preferredFormat('vlc'),'hls2');
 });
 test('native Auto cannot silently replace a missing master with a single video source',()=>{

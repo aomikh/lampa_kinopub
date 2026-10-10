@@ -106,11 +106,3 @@ test('both absent sources show the episode number without requesting a broken im
   assert.equal(rt.imageRequests.length,0);assert.equal(rt.requests.length,0);
   assert.equal(rt.rows[0].find('.online-prestige__img').content.some(s=>typeof s==='string'&&s.includes('>01<')),true);
 });
-test('context menu one-off Infuse is explicit and does not overwrite player settings',()=>{
-  const rt=runtime(),c=component(rt);let picked=null;
-  const html=rt.Lampa.Template.get('online_prestige_full',{});
-  c.contextMenu({html,element:{},onFile:cb=>cb({}),onPlay:p=>picked=p});
-  html.trigger('hover:long');
-  const menu=rt.menus.at(-1);const infuse=menu.items.find(i=>i.player==='infuse');assert.ok(infuse);
-  menu.onSelect(infuse);assert.equal(picked,'infuse');assert.equal(rt.storage.player,'inner');
-});

@@ -1,0 +1,165 @@
+✖ plugin has no separate Infuse authorization, URL builder, resolver or diagnostics (2.713084ms)
+✖ apple_tv: only existing general KinoPub settings remain (7.513725ms)
+✖ apple: only existing general KinoPub settings remain (4.327572ms)
+✔ tizen: only existing general KinoPub settings remain (2.773477ms)
+✖ apple_tv: saved Infuse choice uses the normal Lampa adapter and catalog source (4.572795ms)
+✖ apple: saved Infuse choice uses the normal Lampa adapter and catalog source (3.333721ms)
+✖ long press no longer adds a custom Infuse action (5.369879ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 1
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119.071884
+
+✖ failing tests:
+
+test at tests/infuse-removal.test.cjs:8:1
+✖ plugin has no separate Infuse authorization, URL builder, resolver or diagnostics (2.713084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/infuse-removal.test.cjs:10:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/infuse-removal.test.cjs:14:53
+✖ apple_tv: only existing general KinoPub settings remain (7.513725ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'kp_log_url',
+      'kp_max_quality',
+      'kp_format',
+  +   'kp_action_infuse_login',
+  +   'kp_action_infuse_logout',
+  +   'kp_action_infuse_last_handoff',
+      'kp_proxy',
+      'kp_subtitles_enabled',
+      'kp_action_logout',
+      'kp_action_login',
+      'kp_action_region'
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/infuse-removal.test.cjs:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'kp_log_url', 'kp_max_quality', 'kp_format', 'kp_action_infuse_login', 'kp_action_infuse_logout', 'kp_action_infuse_last_handoff', 'kp_proxy', 'kp_subtitles_enabled', 'kp_action_logout', 'kp_action_login', 'kp_action_region' ],
+    expected: [ 'kp_log_url', 'kp_max_quality', 'kp_format', 'kp_proxy', 'kp_subtitles_enabled', 'kp_action_logout', 'kp_action_login', 'kp_action_region' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/infuse-removal.test.cjs:14:53
+✖ apple: only existing general KinoPub settings remain (4.327572ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'kp_log_url',
+      'kp_max_quality',
+      'kp_format',
+  +   'kp_action_infuse_login',
+  +   'kp_action_infuse_logout',
+  +   'kp_action_infuse_last_handoff',
+      'kp_proxy',
+      'kp_subtitles_enabled',
+      'kp_action_logout',
+      'kp_action_login',
+      'kp_action_region'
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/infuse-removal.test.cjs:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'kp_log_url', 'kp_max_quality', 'kp_format', 'kp_action_infuse_login', 'kp_action_infuse_logout', 'kp_action_infuse_last_handoff', 'kp_proxy', 'kp_subtitles_enabled', 'kp_action_logout', 'kp_action_login', 'kp_action_region' ],
+    expected: [ 'kp_log_url', 'kp_max_quality', 'kp_format', 'kp_proxy', 'kp_subtitles_enabled', 'kp_action_logout', 'kp_action_login', 'kp_action_region' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/infuse-removal.test.cjs:27:45
+✖ apple_tv: saved Infuse choice uses the normal Lampa adapter and catalog source (4.572795ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/infuse-removal.test.cjs:39:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/infuse-removal.test.cjs:27:45
+✖ apple: saved Infuse choice uses the normal Lampa adapter and catalog source (3.333721ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/infuse-removal.test.cjs:39:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/infuse-removal.test.cjs:52:1
+✖ long press no longer adds a custom Infuse action (5.369879ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/workspace/scratch/5533c15aa2ec/lampa_kinopub/tests/infuse-removal.test.cjs:57:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

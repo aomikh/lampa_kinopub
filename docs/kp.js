@@ -26,7 +26,7 @@
    *  CONSTANTS                                                   *
    * ============================================================ */
 
-  var PLUGIN_VERSION  = '1.0.73-mx.22';
+  var PLUGIN_VERSION  = '1.0.73-mx.23';
   // Public manifest-proxy URL — set near KP_PROXY_URL declaration below.
   var COMPONENT_NAME  = 'online_kp';
   var BALANSER        = 'kpapi';
@@ -94,10 +94,6 @@
   var KEY_FORMAT      = 'kp_format';
   var KEY_PROXY       = 'kp_proxy';
   var KEY_SUBS        = 'kp_subtitles_enabled';
-  // Legacy key migrated to direct files; no selectable Infuse delivery modes.
-  var KEY_INFUSE_FORMAT = 'kp_infuse_format_v1';
-  var KEY_INFUSE_ATTEMPT = 'kp_infuse_last_handoff_v1';
-
   // Never log URL paths: KinoPub can carry the credential in the path as
   // well as the query. This affects diagnostics only, never the media URL.
   function redactDiagnostic(value, key) {
@@ -148,31 +144,6 @@
   function mediaUrl(value) {
     // Do not reserialize, decode, upgrade http, or rewrite a signed URL.
     return typeof value === 'string' && /^https?:\/\/[^\s]+$/i.test(value) ? value : null;
-  }
-
-  function infuseFileUrl(value) {
-    if (!mediaUrl(value)) return null;
-    // A file field is not proof of the response's type. Reject recognisable
-    // manifest/reducer URLs; leave opaque signed file URLs byte-for-byte intact.
-    var path = value.split('?')[0].split('#')[0];
-    if (/\.(m3u8|mpd)$/i.test(path) || /\/(hls(?:2|4)?|manifest-proxy)(?:\/|$)/i.test(path)) return null;
-    return value;
-  }
-
-  function infusePlayUrl(play) {
-    var format = play && (play._kpFormat || 'http');
-    return format === 'http' ? infuseFileUrl(play.url) : null;
-  }
-
-  function infuseStage(stage, format, quality, entries) {
-    // One local, secret-free checkpoint. It describes link preparation and
-    // scheme dispatch only; the JS plugin cannot observe native playback.
-    var record = { version: PLUGIN_VERSION, stage: stage, format: format,
-      quality: quality || null, entries: entries || 0, playbackConfirmed: false,
-      at: Date.now(), deviceId: KPInfuse.deviceId() || null,
-      accessExpiresAt: Number(Lampa.Storage.get('kp_infuse_token_expires_at_v1', 0)) || null };
-    Lampa.Storage.set(KEY_INFUSE_ATTEMPT, record);
-    Logger.info('infuse', 'link handoff stage (playback unconfirmed)', record);
   }
 
   function numberValue(value) {
@@ -267,61 +238,6 @@
     }
     next();
     return function () { stopped = true; cleanup(); };
-  }
-
-  // Infuse 8.4.7+: repeated url/position/filename/sub groups, once-encoded.
-  // No guessed Lampa MX callback scheme and no undocumented playlist=.
-  function buildInfuseUrl(play) {
-    var list = Array.isArray(play.playlist) && play.playlist.length ? play.playlist : [play];
-    var start = list.indexOf(play);
-    if (start < 0) start = list.findIndex(function (p) { return p && p.url === play.url; });
-    if (start < 0) list = [play];
-    if (start > 0) list = list.slice(start);
-    var query = [];
-    var full = false;
-    list.slice(0, 40).forEach(function (p, index) {
-      if (full) return;
-      if (!p || !p._kpInfuse || (p._kpFormat || 'http') !== (play._kpFormat || 'http') ||
-          !infusePlayUrl(p)) { full = true; return; }
-      var position = p.timeline && Number(p.timeline.time);
-      var part = 'url=' + encodeURIComponent(p.url) +
-        '&position=' + (isFinite(position) && position > 0 ? Math.floor(position) : 0);
-      if (p.filename || p.title) part += '&filename=' + encodeURIComponent(p.filename || p.title);
-      var subs = p.subtitles || [];
-      for (var i = 0; i < subs.length; i++) {
-        if (mediaUrl(subs[i].url)) { part += '&sub=' + encodeURIComponent(subs[i].url); break; }
-      }
-      // Keep the selected item even if later episodes exceed the limit.
-      if (query.join('&').length + part.length + 32 <= 65536) query.push(part);
-      else full = true;
-    });
-    return query.length ? 'infuse://x-callback-url/play?' + query.join('&') : null;
-  }
-
-  function dispatchInfuse(play) {
-    var url = buildInfuseUrl(play);
-    if (!url) { Logger.warn('infuse', 'handoff rejected'); return false; }
-    pendingVoice = null;
-    currentVoiceLabel = '';
-    // Same scheme dispatch used by Lampa's external adapter. Its current
-    // normalizePlayData rewrites &preload, so it cannot preserve KP signatures.
-    try {
-      infuseStage('dispatch-requested', play._kpFormat || 'http', play._kpQuality,
-        (url.match(/(?:\?|&)url=/g) || []).length);
-      window.location.assign(url);
-      infuseStage('dispatch-returned', play._kpFormat || 'http', play._kpQuality,
-        (url.match(/(?:\?|&)url=/g) || []).length);
-      Logger.info('infuse', 'handoff dispatched (playback unconfirmed)', {
-        stage: 'dispatch', deliveryField: play._kpFormat || 'http', quality: play._kpQuality,
-        entries: (url.match(/(?:\?|&)url=/g) || []).length, callbacks: false
-      });
-      return true;
-    } catch (e) {
-      infuseStage('dispatch-error', play._kpFormat || 'http', play._kpQuality);
-      Logger.error('infuse', 'handoff failed', { error: String(e) });
-      Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_handoff_error'));
-      return false;
-    }
   }
 
   /* ============================================================ *
@@ -521,14 +437,12 @@
     return function () { return revision === network._kpCancelGuard.revision; };
   }
 
-  function createKP(infuse) {
-    // Each OAuth grant is a separate KinoPub device. Never copy the catalog's
-    // tokens to this profile or rename the catalog's existing registration.
-    var KEY_TOKEN = infuse ? 'kp_infuse_token_v1' : 'kp_token';
-    var KEY_REFRESH = infuse ? 'kp_infuse_refresh_v1' : 'kp_refresh';
-    var KEY_TOKEN_EXPIRY = infuse ? 'kp_infuse_token_expires_at_v1' : 'kp_token_expires_at_v1';
-    var KEY_DEVICE_ID = infuse ? 'kp_infuse_device_id_v1' : 'kp_device_id_v1';
-    var KEY_DEVICE_INFO = infuse ? 'kp_infuse_device_info_v1' : 'kp_device_info_v1';
+  function createKP() {
+    var KEY_TOKEN = 'kp_token';
+    var KEY_REFRESH = 'kp_refresh';
+    var KEY_TOKEN_EXPIRY = 'kp_token_expires_at_v1';
+    var KEY_DEVICE_ID = 'kp_device_id_v1';
+    var KEY_DEVICE_INFO = 'kp_device_info_v1';
 
     var authRevision = 0;
     var deviceRevision = -1;
@@ -901,11 +815,6 @@
       item: function (network, id, ok, err) {
         api(network, '/items/' + id, null, ok, err);
       },
-      mediaVideoLink: function (network, file, ok, err) {
-        // Official exact-file resolver. Do not derive a URL from a HLS path
-        // or reuse a cached item link when this request fails.
-        api(network, '/items/media-video-link', { file: file, type: 'http' }, ok, err);
-      },
       profile: function (network, ok, err) {
         api(network, '/user', null, ok, err);
       },
@@ -925,8 +834,7 @@
       }
     };
   }
-  var KP = createKP(false);
-  var KPInfuse = createKP(true);
+  var KP = createKP();
 
   /* ============================================================ *
    *  HELPERS                                                     *
@@ -987,29 +895,23 @@
   }
 
   /**
-   * Confirm the OAuth grant, notify its description, then read it back.
-   * Each profile has one in-flight check; a cancelled source cannot resume
-   * from its result. Transient failures never discard the registration.
+   * Keep the existing KinoPub registration and its custom name. Concurrent
+   * checks share one request; cancellation belongs to the waiting source.
+   * A temporary descriptive-update failure does not prevent playback.
    */
-  var identityFlights = [];
-  function notifyDeviceIdentity(network, ready, error, client) {
-    client = client || KP;
-    if (!client.hasToken()) { if (error) error({}, 'no_token'); return; }
-    if (client === KPInfuse && client.tokenAccess() === KP.tokenAccess()) {
-      if (error) error({}, 'device_collision'); return;
-    }
-    var key = client === KPInfuse ? 1 : 0;
-    var current = networkGuard(network);
-    var waiter = { ready: ready, error: error, current: current };
-    var flight = identityFlights[key];
-    if (flight && flight.revision === client.revision()) { flight.waiters.push(waiter); return; }
+  var identityFlight = null;
+  function notifyDeviceIdentity(network, ready, error) {
+    if (!KP.hasToken()) { if (error) error({}, 'no_token'); return; }
+    var waiter = { ready: ready, error: error, current: networkGuard(network) };
+    var flight = identityFlight;
+    if (flight && flight.revision === KP.revision()) { flight.waiters.push(waiter); return; }
     if (flight) { flight.net.clear(); flight.finish(false, {}, 'auth_changed'); }
-    flight = { revision: client.revision(), net: new Lampa.Reguest(), waiters: [waiter], done: false };
-    identityFlights[key] = flight;
+    flight = { revision: KP.revision(), net: new Lampa.Reguest(), waiters: [waiter], done: false };
+    identityFlight = flight;
     flight.finish = function (ok, xhr, status) {
       if (flight.done) return;
       flight.done = true;
-      if (identityFlights[key] === flight) identityFlights[key] = null;
+      if (identityFlight === flight) identityFlight = null;
       flight.waiters.forEach(function (w) {
         if (!w.current()) return;
         try {
@@ -1018,15 +920,9 @@
         } catch (e) { Logger.warn('identity', 'identity callback failed'); }
       });
     };
-    // This network belongs to the grant, not to a source destroyed while a
-    // concurrent startup check is still awaiting the same verification.
     network = flight.net;
     var info = detectDeviceInfo();
-    if (client === KPInfuse) {
-      info.title = 'Lampa MX / Infuse / ' + info.hardware;
-      info.software += ' / external Infuse';
-    }
-    delete info._platform; // Only the three documented notify fields.
+    delete info._platform;
     function parsed(response) {
       if (typeof response === 'string') { try { return JSON.parse(response); } catch (e) { return null; } }
       return response;
@@ -1035,57 +931,23 @@
     function accepted(response) {
       return response && !response.error && !(Number(response.status) >= 400);
     }
-    client.deviceInfo(network, function (response) {
+    KP.deviceInfo(network, function (response) {
       response = parsed(response);
       if (!accepted(response) || !response.device || !response.device.id) {
         Logger.warn('identity', 'linked device not confirmed');
-        failed({}, 'no_device');
-        return;
+        failed({}, 'no_device'); return;
       }
-      var deviceId = response.device.id;
-      if (client === KPInfuse && KP.deviceId() && String(deviceId) === String(KP.deviceId())) {
-        failed({}, 'device_collision'); return;
-      }
-      // A custom catalog title must not be replaced while preparing Infuse.
-      if (client === KP && response.device.title) info.title = response.device.title;
-      client.rememberDevice(response.device, false);
-      Logger.info('identity', 'linked API device confirmed', { profile: key ? 'infuse' : 'catalog', deviceId: deviceId });
-      function confirmed(device) {
-        client.rememberDevice(device, true);
-        client.setDeviceReady();
-        Logger.info('identity', 'description read back', { profile: key ? 'infuse' : 'catalog', deviceId: deviceId });
-        flight.finish(true);
-      }
-      function notify() {
-        client.deviceNotify(network, info, function (result) {
-          if (!accepted(parsed(result))) { failed({}, 'device_notify'); return; }
-          if (client === KP) {
-            // Catalog playback does not depend on a descriptive update.
-            client.setDeviceReady(); flight.finish(true); return;
-          }
-          client.deviceInfo(network, function (check) {
-            check = parsed(check);
-            var device = check && check.device;
-            if (!accepted(check) || !device || String(device.id) !== String(deviceId) ||
-                device.title !== info.title || device.hardware !== info.hardware || device.software !== info.software) {
-              failed({}, 'identity_mismatch'); return;
-            }
-            confirmed(device);
-          }, failed);
-        }, function (xhr, status) {
-          Logger.warn('identity', 'notify failed', { http: xhr && xhr.status, status: status });
-          if (client === KPInfuse || status === 'auth_changed' || !client.hasToken()) { failed(xhr, status); return; }
-          client.setDeviceReady();
-          flight.finish(true);
-        });
-      }
-      if (client === KPInfuse) {
-        client.saveDeviceSettings(network, deviceId,
-          { support4k: 1, supportHevc: 1, supportHdr: 1 }, function (result) {
-            if (!accepted(parsed(result))) { failed({}, 'device_settings'); return; }
-            notify();
-          }, failed);
-      } else notify();
+      if (response.device.title) info.title = response.device.title;
+      KP.rememberDevice(response.device, false);
+      Logger.info('identity', 'linked API device confirmed', { deviceId: response.device.id });
+      KP.deviceNotify(network, info, function (result) {
+        if (!accepted(parsed(result))) { failed({}, 'device_notify'); return; }
+        KP.setDeviceReady(); flight.finish(true);
+      }, function (xhr, status) {
+        Logger.warn('identity', 'notify failed', { http: xhr && xhr.status, status: status });
+        if (status === 'auth_changed' || !KP.hasToken()) { failed(xhr, status); return; }
+        KP.setDeviceReady(); flight.finish(true);
+      });
     }, function (xhr, status) {
       Logger.warn('identity', 'device check failed', { http: xhr && xhr.status, status: status });
       failed(xhr, status);
@@ -1961,11 +1823,12 @@
 
   // Core 335 delegates these choices to the tvOS shell or another app.
   // Keep its registered adapters; web/Tizen recovery and track hooks do not
-  // control these players. Infuse has its own signature-preserving path.
+  // control these players. Launching remains the core adapter's responsibility.
   function isAppleDelegatedPlayer(player) {
-    return Lampa.Platform.is('apple_tv') &&
-      ['tvospro', 'tvos', 'tvosl', 'tvosselect', 'vlc', 'senplayer', 'vidhub', 'svplayer']
-        .indexOf(detectActualPlayer(player)) !== -1;
+    var actual = detectActualPlayer(player);
+    return (Lampa.Platform.is('apple_tv') || (Lampa.Platform.is('apple') && actual === 'infuse')) &&
+      ['tvospro', 'tvos', 'tvosl', 'tvosselect', 'vlc', 'senplayer', 'vidhub', 'svplayer', 'infuse']
+        .indexOf(actual) !== -1;
   }
 
   function isTVOSNativePlayer(player) {
@@ -1998,9 +1861,6 @@
 
   function preferredFormat(player) {
     player = detectActualPlayer(player);
-    if (player === 'infuse') {
-      return 'http';
-    }
     if (KP_BLOB_TEST) {
       // Legacy diagnostic — see KP_BLOB_TEST flag.
       return 'hls4';
@@ -2015,8 +1875,8 @@
     if (setting && setting !== 'auto') return setting;
 
     // The tvOS shell needs the complete server master with its audio groups.
-    // It owns audio selection. HLS4 is not applied to Infuse, generic external
-    // apps, browser playback or Tizen, and explicit format choices win above.
+    // It owns audio selection. Generic external apps, browser playback and
+    // Tizen keep their existing formats; explicit format choices win above.
     var resolved = isTVOSNativePlayer(player) ? 'hls4' : 'hls2';
     var key = player + '|' + resolved;
     if (lastAutoFormatLogKey !== key) {
@@ -2423,9 +2283,8 @@
    * usable by Lampa.Player.play({quality: ...})
    * Plus return the URL for the requested target quality (or the largest available <= maxQuality).
    */
-  function pickStream(files, format, target, allowFileReference, strictInfuse) {
+  function pickStream(files, format, target) {
     if (!files || !files.length) return null;
-    if (strictInfuse) return pickInfuseStream(files, format);
     // 'http' (progressive MP4) is intentionally NOT in any fallback list —
     // it freezes on Tizen players. Real auto resolution happens in
     // preferredFormat() before we get here, so 'auto' is just a defensive default.
@@ -2436,15 +2295,14 @@
     function pickUrl(u) {
       for (var i = 0; i < fmtList.length; i++) {
         var k = fmtList[i];
-        if (u && (format === 'http' && allowFileReference ? infuseFileUrl(u[k]) : mediaUrl(u[k]))) return u[k];
+        if (u && mediaUrl(u[k])) return u[k];
       }
       return null;
     }
 
     var maxQ  = maxQuality();
     var avail = files.filter(function (f) {
-      return f.quality <= maxQ && (pickUrl(f.urls) ||
-        (format === 'http' && allowFileReference && f.file));
+      return f.quality <= maxQ && pickUrl(f.urls);
     });
     if (!avail.length && format !== 'http') avail = files.filter(function (f) { return pickUrl(f.urls); });
     if (!avail.length) return null;
@@ -2474,20 +2332,6 @@
       label: best.label,
       file: best.file
     };
-  }
-
-  function pickInfuseStream(files, format) {
-    if (!files || !files.length || format !== 'http') return null;
-    var highest = Math.max.apply(null, files.map(function (f) { return f.quality; }));
-    var candidates = files.filter(function (f) { return f.quality === highest; });
-    if (candidates.length !== 1) return null;
-    var file = candidates[0];
-    var url = infuseFileUrl(file.urls && file.urls.http);
-    if (!url && !file.file) return null;
-    // Choose resolution before delivery, ignoring other players' saved limit.
-    // Missing delivery at the maximum must not silently choose a lower file.
-    return { url: url, quality: {}, currentQuality: highest, label: file.label,
-      file: file.file, format: format };
   }
 
   function pickNativeStream(files, format, target) {
@@ -2640,8 +2484,8 @@
     if (reason !== 'ok' && cancel) cancel();
   }
 
-  function openAuthModal(onSuccess, client, onCancel) {
-    client = client || KP;
+  function openAuthModal(onSuccess, onCancel) {
+    var client = KP;
     closeAuthModal('new_flow');
     auth_state.cancel = onCancel || null;
     Logger.info('auth', 'starting device flow');
@@ -2679,7 +2523,7 @@
       var prevController = (Lampa.Controller.enabled() || {}).name || 'content';
       auth_state.modalOpen = true;
       Lampa.Modal.open({
-        title: client === KPInfuse ? Lampa.Lang.translate('kp_infuse_login') : Lampa.Lang.translate('kp_auth_title'),
+        title: Lampa.Lang.translate('kp_auth_title'),
         html:  modal,
         size:  'medium',
         onBack: function () {
@@ -2732,7 +2576,7 @@
           }, function () {
             if (onCancel) onCancel();
             Lampa.Noty.show(Lampa.Lang.translate('kp_auth_error'));
-          }, client);
+          });
         }, function (response) {
           if (!auth_state.modalOpen || auth_state.network !== authNetwork) return;
           if (response && response.error === 'slow_down') interval += 5000;
@@ -2757,10 +2601,6 @@
 
   function kpapi(component, _object) {
     var network = new Lampa.Reguest();
-    var infuseNetwork = new Lampa.Reguest();
-    var infuseGeneration = 0;
-    var infuseLaunching = false;
-    var infuseTimer = null;
     var object  = _object;
 
     var raw      = null;          // /v1/items/{id} response
@@ -2912,7 +2752,6 @@
     this.extendChoice = function (saved) { Lampa.Arrays.extend(choice, saved, true); };
 
     this.reset = function () {
-      cancelInfuseLaunch();
       Logger.debug('source', 'reset');
       component.reset();
       choice = { season: 0, voice: 0, voice_name: '' };
@@ -2924,7 +2763,6 @@
     };
 
     this.filter = function (type, a, b) {
-      cancelInfuseLaunch();
       Logger.debug('source', 'filter change', { type: a.stype, index: b.index });
       choice[a.stype] = b.index;
       if (a.stype === 'voice') {
@@ -2949,7 +2787,6 @@
     };
 
     this.destroy = function () {
-      cancelInfuseLaunch();
       if (window._kpRefreshFilterAndChips === refreshHook) window._kpRefreshFilterAndChips = null;
       refreshHook = null;
       Logger.debug('source', 'destroy');
@@ -2959,140 +2796,6 @@
     };
 
     /* ---------- internal helpers ---------- */
-
-    function cancelInfuseLaunch() {
-      infuseGeneration++;
-      infuseLaunching = false;
-      clearTimeout(infuseTimer);
-      infuseNetwork.clear();
-    }
-
-    function launchInfuse(item, items, targetQuality) {
-      if (infuseLaunching || !raw || !raw.id) return;
-      if (!KPInfuse.hasToken()) {
-        infuseLaunching = true;
-        var authGeneration = ++infuseGeneration;
-        openAuthModal(function () {
-          if (authGeneration !== infuseGeneration) return;
-          infuseLaunching = false;
-          launchInfuse(item, items, targetQuality);
-        }, KPInfuse, function () {
-          if (authGeneration === infuseGeneration) infuseLaunching = false;
-        });
-        return;
-      }
-      if (!KPInfuse.deviceReady()) {
-        infuseLaunching = true;
-        var checkGeneration = ++infuseGeneration;
-        notifyDeviceIdentity(infuseNetwork, function () {
-          if (checkGeneration !== infuseGeneration) return;
-          infuseLaunching = false;
-          launchInfuse(item, items, targetQuality);
-        }, function () {
-          if (checkGeneration !== infuseGeneration) return;
-          infuseLaunching = false;
-          Lampa.Noty.show(Lampa.Lang.translate('kp_auth_error'));
-        }, KPInfuse);
-        return;
-      }
-      infuseLaunching = true;
-      var generation = ++infuseGeneration;
-      var kpId = raw.id;
-      var stage = 'item';
-      var delivery = preferredFormat('infuse');
-      var selectedPlay = null;
-      infuseStage('metadata', delivery);
-      function fail(reason, status) {
-        if (generation !== infuseGeneration || !infuseLaunching) return;
-        infuseLaunching = false;
-        clearTimeout(infuseTimer);
-        infuseNetwork.clear();
-        infuseStage('failed-' + stage, delivery, selectedPlay && selectedPlay._kpQuality);
-        Logger.warn('infuse', reason, { stage: stage, status: status });
-        var code = stage === 'file' ? 'KP-I2' : 'KP-I1';
-        Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_file') + ' [' + code +
-          (numberValue(status) !== null ? ' HTTP ' + numberValue(status) : '') + ']');
-      }
-      // Bound each of the two API stages independently.
-      function armTimeout() {
-        clearTimeout(infuseTimer);
-        infuseTimer = setTimeout(function () {
-          fail('link refresh timed out');
-          infuseNetwork.clear();
-        }, 18000);
-      }
-      function submit(play) {
-        stage = 'file';
-        function handoff(url) {
-          if (generation !== infuseGeneration || !infuseLaunching) return;
-          if (!infuseFileUrl(url)) {
-            fail('resolver returned no resource for requested format'); return;
-          }
-          play.url = url;
-          infuseLaunching = false;
-          clearTimeout(infuseTimer);
-          infuseStage('link-ready', delivery, play._kpQuality, (play.playlist || [play]).length);
-          dispatchInfuse(play);
-        }
-        if (play._kpFile) {
-          infuseStage('resolve-link', delivery, play._kpQuality);
-          armTimeout();
-          KPInfuse.mediaVideoLink(infuseNetwork, play._kpFile, function (result) {
-            if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }
-            if (result && result.type && result.type !== 'http') {
-              fail('resolver reported a different format'); return;
-            }
-            handoff(result && result.url);
-          }, function (xhr) { fail('requested link resolution failed', xhr && xhr.status); });
-        } else handoff(play.url);
-      }
-      // Metadata and every URL in the playlist must belong to Infuse's
-      // dedicated grant, never to the catalog's device or cached card data.
-      armTimeout();
-      KPInfuse.item(infuseNetwork, kpId, function (json) {
-        if (generation !== infuseGeneration || !infuseLaunching || stage !== 'item') return;
-        var fresh = json && json.item;
-        if (!fresh || String(fresh.id) !== String(kpId)) { fail('item identity mismatch'); return; }
-        stage = 'file';
-        function refreshed(element) {
-          var video;
-          if (element.kp.kind === 'episode') {
-            var season = (fresh.seasons || []).find(function (s) {
-              return numberValue(s.number) === numberValue(element.season);
-            });
-            video = season && (season.episodes || []).find(function (e, i) {
-              var n = numberValue(e.number);
-              return (n === null ? i + 1 : n) === numberValue(element.episode);
-            });
-          } else video = (fresh.videos || [])[0];
-          if (!video) return null;
-          var copy = {};
-          Object.keys(element).forEach(function (key) { copy[key] = element[key]; });
-          copy.kp = { kind: element.kp.kind, files: parseFiles(video.files),
-            audios: video.audios || [], subtitles: video.subtitles || [] };
-          return toPlayElement(copy, 'infuse', targetQuality);
-        }
-        var play = refreshed(item);
-        if (!play) { fail('requested file or format unavailable at selected quality'); return; }
-        selectedPlay = play;
-        var playlist = [];
-        var selected = items.indexOf(item);
-        var incomplete = false;
-        (item.kp.kind === 'episode' ? items.slice(Math.max(0, selected), Math.max(0, selected) + 40) : [item])
-          .forEach(function (entry) {
-            if (incomplete) return;
-            var p = entry === item ? play : refreshed(entry);
-            // Never jump across an episode with an unavailable link.
-            if (p && (entry === item || infusePlayUrl(p))) playlist.push(p);
-            else incomplete = true;
-          });
-        play.playlist = playlist;
-        // Old URL-only movie responses still need the item refresh.
-        submit(play);
-        // Handoff is not a viewing event. No mark(), watched(), timeline
-        // update or internal Lampa player hooks are run for Infuse.
-      }, function (xhr) { fail('link refresh failed', xhr && xhr.status); });
-    }
 
     function adaptSimilar(c) {
       // kinopub gives us `title` as "Русское / Original"; split for prettier display
@@ -3299,8 +3002,7 @@
         var season = extract.seasons[choice.season];
         if (!season) return [];
         return season.episodes.map(function (ep) {
-          var stream = player === 'infuse' ? pickInfuseStream(ep.files, fmt) :
-            isTVOSNativePlayer(player) ? pickNativeStream(ep.files, fmt) : pickStream(ep.files, fmt);
+          var stream = isTVOSNativePlayer(player) ? pickNativeStream(ep.files, fmt) : pickStream(ep.files, fmt);
           return {
             kp:           { kind: 'episode', files: ep.files, audios: ep.audios, subtitles: ep.subtitles },
             episode:      ep.number,
@@ -3324,8 +3026,7 @@
           };
         });
       } else if (extract.type === 'movie' && extract.movie) {
-        var stream2 = player === 'infuse' ? pickInfuseStream(extract.movie.files, fmt) :
-          isTVOSNativePlayer(player) ? pickNativeStream(extract.movie.files, fmt) : pickStream(extract.movie.files, fmt);
+        var stream2 = isTVOSNativePlayer(player) ? pickNativeStream(extract.movie.files, fmt) : pickStream(extract.movie.files, fmt);
         return [{
           kp:          { kind: 'movie', files: extract.movie.files, audios: extract.movie.audios, subtitles: extract.movie.subtitles },
           title:       (object.movie && (object.movie.title || object.movie.name)) || '',
@@ -3342,9 +3043,7 @@
 
     function streamForElement(element, target, player) {
       var fmt = preferredFormat(player);
-      if (player === 'infuse' && !fmt) return null;
-      var stream = player === 'infuse' ? pickInfuseStream(element.kp.files, fmt) :
-        isTVOSNativePlayer(player) ? pickNativeStream(element.kp.files, fmt, target) :
+      var stream = isTVOSNativePlayer(player) ? pickNativeStream(element.kp.files, fmt, target) :
           pickStream(element.kp.files, fmt, target);
       if (!stream) {
         Logger.warn('source', 'no stream picked', { kind: element.kp.kind, fmt: fmt });
@@ -3383,7 +3082,7 @@
       // quality choice. Resolve the maximum for the actual Apple destination.
       // Keep explicit context choices and legacy changed quality fields exact.
       var target = targetQuality;
-      if (target == null && !((actualPlayer === 'infuse' || delegated) && element.quality === element._kpListedQuality)) target = element.quality;
+      if (target == null && !(delegated && element.quality === element._kpListedQuality)) target = element.quality;
       var stream = streamForElement(element, target, actualPlayer);
       if (!stream) return null;
 
@@ -3416,29 +3115,6 @@
         // A successful app handoff is not evidence that the film was watched.
         delete play.quality;
         delete play.callback;
-      }
-
-      if (actualPlayer === 'infuse') {
-        delete play.quality;
-        delete play.callback;
-        play._kpInfuse = true;
-        play._kpFormat = preferredFormat('infuse');
-        play._kpQuality = stream.currentQuality;
-        play._kpFile = stream.file;
-        play.season = element.season;
-        play.episode = element.episode;
-        var seriesName = object.movie && (object.movie.name || object.movie.title) || '';
-        var extension = /\.(mp4|mkv|m4v|mov|ts)$/i.exec((stream.file || (stream.url || '').split('?')[0]).split('#')[0]);
-        play.filename = (element.kp.kind === 'episode' ? seriesName + ' ' + displayTitle : displayTitle) +
-          (play._kpFormat === 'http' && extension ? '.' + extension[1] : '');
-        if (Lampa.Storage.get(KEY_SUBS, false)) {
-          // The documented interface accepts one subtitle URL per video,
-          // but does not expose a timing-shift or audio-selection parameter.
-          play.subtitles = buildSubtitles((element.kp.subtitles || []).filter(function (s) {
-            return !s.shift && mediaUrl(s.url);
-          }));
-        }
-        return play;
       }
 
       // ── Voice selection ────────────────────────────────────────────────
@@ -3602,7 +3278,6 @@
         similars: waitSimilars,
         onEnter: function (item, html, options) {
           var actualPlayer = detectActualPlayer(options && options.player);
-          if (actualPlayer === 'infuse') { launchInfuse(item, items, options && options.quality); return; }
           var play = toPlayElement(item, actualPlayer, options && options.quality);
           if (!play) {
             Lampa.Noty.show(Lampa.Lang.translate('online_nolink'));
@@ -4422,9 +4097,6 @@
           var menu = [];
           if (Lampa.Platform.is('webos'))   menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Webos',   player: 'webos' });
           if (Lampa.Platform.is('android')) menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Android', player: 'android' });
-          if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
-            menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Infuse', player: 'infuse' });
-          }
           menu.push({ title: Lampa.Lang.translate('player_lauch') + ' - Lampa', player: 'lampa' });
           menu.push({ title: Lampa.Lang.translate('online_video'), separator: true });
           menu.push({ title: Lampa.Lang.translate('kp_try_format'), kpformat: true });
@@ -4447,7 +4119,7 @@
               if (a.timeclearall) params.onClearAllTime();
               Lampa.Controller.toggle(enabled);
               if (a.player) {
-                if (a.player !== 'infuse') Lampa.Player.runas(a.player);
+                Lampa.Player.runas(a.player);
                 if (params.onPlay) params.onPlay(a.player);
                 else params.html.trigger('hover:enter');
               }
@@ -4812,50 +4484,6 @@
       field: { name: Lampa.Lang.translate('kp_set_format'), description: Lampa.Lang.translate('kp_set_format_descr') }
     });
 
-    if (Lampa.Platform.is('apple_tv') || Lampa.Platform.is('apple')) {
-      // Ignore and migrate the removed experiment even if it was saved.
-      Lampa.Storage.set(KEY_INFUSE_FORMAT, 'http');
-      Lampa.SettingsApi.addParam({
-        component: 'kp',
-        param: { name: 'kp_action_infuse_login', type: 'trigger', "default": false },
-        field: { name: Lampa.Lang.translate('kp_infuse_login'),
-          description: Lampa.Lang.translate('kp_infuse_login_descr') },
-        onChange: function () {
-          if (KPInfuse.hasToken()) {
-            notifyDeviceIdentity(new Lampa.Reguest(), function () {
-              Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_linked'));
-            }, function () { Lampa.Noty.show(Lampa.Lang.translate('kp_auth_error')); }, KPInfuse);
-          } else openAuthModal(function () {
-            Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_linked'));
-          }, KPInfuse);
-        }
-      });
-      Lampa.SettingsApi.addParam({
-        component: 'kp',
-        param: { name: 'kp_action_infuse_logout', type: 'trigger', "default": false },
-        field: { name: Lampa.Lang.translate('kp_infuse_logout'),
-          description: Lampa.Lang.translate('kp_infuse_logout_descr') },
-        onChange: function () {
-          KPInfuse.clearTokens();
-          Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_unlinked'));
-        }
-      });
-      Lampa.SettingsApi.addParam({
-        component: 'kp',
-        param: { name: 'kp_action_infuse_last_handoff', type: 'trigger', "default": false },
-        field: { name: Lampa.Lang.translate('kp_infuse_last_handoff'),
-          description: Lampa.Lang.translate('kp_infuse_last_handoff_descr') },
-        onChange: function () {
-          var last = Lampa.Storage.get(KEY_INFUSE_ATTEMPT, null);
-          if (!last) { Lampa.Noty.show(Lampa.Lang.translate('kp_infuse_no_handoff')); return; }
-          Lampa.Noty.show('KinoPub ' + last.version + ' / ' + last.format + ' / ' +
-            (last.quality ? last.quality + 'p' : '?') + ' / ' +
-            Lampa.Lang.translate('kp_infuse_stage_' + last.stage) + ' / ' +
-            last.entries + ' / ' + Lampa.Lang.translate('kp_infuse_unconfirmed'));
-        }
-      });
-    }
-
     Lampa.SettingsApi.addParam({
       component: 'kp',
       param: { name: KEY_PROXY, type: 'input', values: '', "default": '' },
@@ -5011,34 +4639,6 @@
       },
       kp_online_title: { ru: 'KinoPub', en: 'KinoPub', ua: 'KinoPub' },
       kp_player_handoff_error: { ru: 'Не удалось передать видео выбранному плееру.', en: 'Could not hand video to the selected player.', ua: 'Не вдалося передати відео вибраному плеєру.' },
-      kp_infuse_login: { ru: 'Infuse: подключить отдельное устройство', en: 'Infuse: link separate device', ua: 'Infuse: підключити окремий пристрій' },
-      kp_infuse_login_descr: { ru: 'Один раз подтверди код в KinoPub. Прямой файл и максимальное качество выбираются автоматически.', en: 'Confirm a KinoPub code once. Direct file and maximum quality are automatic.', ua: 'Підтверди код KinoPub один раз. Прямий файл і максимальна якість автоматично.' },
-      kp_infuse_logout: { ru: 'Infuse: отключить устройство', en: 'Infuse: unlink device', ua: 'Infuse: відключити пристрій' },
-      kp_infuse_logout_descr: { ru: 'Удалить только сохранённый вход Infuse. Запись устройства можно удалить в аккаунте KinoPub.', en: 'Remove only Infuse credentials. Delete the device record in your KinoPub account.', ua: 'Видалити лише збережений вхід Infuse.' },
-      kp_infuse_linked: { ru: 'Отдельное устройство Infuse подключено. Вход сохранён.', en: 'Separate Infuse device linked. Login saved.', ua: 'Окремий пристрій Infuse підключено.' },
-      kp_infuse_unlinked: { ru: 'Вход Infuse удалён. Вход для каталога сохранён.', en: 'Infuse login removed. Catalog login preserved.', ua: 'Вхід Infuse видалено. Вхід каталогу збережено.' },
-      kp_infuse_last_handoff: { ru: 'Infuse: последняя передача', en: 'Infuse: last handoff', ua: 'Infuse: остання передача' },
-      kp_infuse_last_handoff_descr: { ru: 'Версия, формат, качество и этап последней попытки. Секретных ссылок нет. Состояние воспроизведения Infuse недоступно.', en: 'Version, format, quality and last attempt stage. No secret URLs. Native playback status is unavailable.', ua: 'Версія, формат, якість та етап останньої спроби. Без секретних посилань.' },
-      kp_infuse_no_handoff: { ru: 'Попыток передачи в этой версии ещё нет.', en: 'No handoff attempts yet.', ua: 'Спроб передачі ще немає.' },
-      kp_infuse_unconfirmed: { ru: 'воспроизведение не подтверждено', en: 'playback unconfirmed', ua: 'відтворення не підтверджено' },
-      'kp_infuse_stage_metadata': { ru: 'получение карточки', en: 'fetching metadata', ua: 'отримання картки' },
-      'kp_infuse_stage_resolve-link': { ru: 'запрос свежей ссылки', en: 'resolving fresh link', ua: 'запит свіжого посилання' },
-      'kp_infuse_stage_link-ready': { ru: 'ссылка готова', en: 'link ready', ua: 'посилання готове' },
-      'kp_infuse_stage_dispatch-requested': { ru: 'передача запрошена', en: 'dispatch requested', ua: 'передачу запитано' },
-      'kp_infuse_stage_dispatch-returned': { ru: 'вызов передачи завершён', en: 'dispatch call returned', ua: 'виклик передачі завершено' },
-      'kp_infuse_stage_dispatch-error': { ru: 'ошибка передачи', en: 'dispatch error', ua: 'помилка передачі' },
-      'kp_infuse_stage_failed-item': { ru: 'ошибка получения карточки', en: 'metadata failed', ua: 'помилка отримання картки' },
-      'kp_infuse_stage_failed-file': { ru: 'ошибка получения ресурса', en: 'resource failed', ua: 'помилка отримання ресурсу' },
-      kp_infuse_no_file: {
-        ru: 'Не удалось получить прямой файл KinoPub максимального качества. Повтори запуск. Качество не снижено.',
-        en: 'No fresh direct KinoPub file at maximum quality. Retry. Quality was not reduced.',
-        ua: 'Не вдалося отримати прямий файл KinoPub у вибраній якості.'
-      },
-      kp_infuse_handoff_error: {
-        ru: 'Не удалось передать видео в Infuse. Проверьте установку приложения.',
-        en: 'Could not hand off to Infuse. Check that the app is installed.',
-        ua: 'Не вдалося передати відео в Infuse.'
-      },
       kp_auth_title: {
         ru: 'Авторизация kinopub',
         en: 'kinopub authorization',
@@ -5095,9 +4695,9 @@
         ua: 'Макс. якість'
       },
       kp_set_max_quality_descr: {
-        ru: 'Предел для других плееров. Infuse всегда получает максимальное качество.',
-        en: 'Limit for other players. Infuse always receives maximum quality.',
-        ua: 'Межа для інших плеєрів. Infuse завжди отримує максимальну якість.'
+        ru: 'Максимальное качество видео для выбранного плеера.',
+        en: 'Maximum video quality for the selected player.',
+        ua: 'Максимальна якість відео для вибраного плеєра.'
       },
       kp_set_format: {
         ru: 'Формат потока',
@@ -5244,7 +4844,6 @@
     } else {
       Logger.info('auth', 'no token at startup');
     }
-    if (KPInfuse.hasToken()) notifyDeviceIdentity(new Lampa.Reguest(), null, null, KPInfuse);
 
     if (Lampa.Manifest.app_digital >= 177) {
       Lampa.Storage.sync('online_choice_' + BALANSER, 'object_object');
@@ -5412,8 +5011,7 @@
     // Tizen app crash on HEVC 4K initial play. See setupKpPlayerPatch().
     setupKpPlayerPatch();
 
-    // Probe availability only; compatible Tizen launches may use the
-    // reducer. Infuse always uses the service's direct-file URL.
+    // Probe availability only; compatible Tizen launches may use the reducer.
     checkProxyAvailability();
 
     Logger.info('boot', 'kp.js initialized');

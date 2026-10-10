@@ -5,7 +5,6 @@ const vm = require('node:vm');
 
 function runtime(options = {}) {
   const storage = {kp_max_quality: '1080', kp_format: 'auto', player: 'inner',
-    ...(options.infuseLinked === false ? {} : {kp_infuse_token_v1:'infuse-fixture-access',kp_infuse_refresh_v1:'infuse-fixture-refresh'}),
     ...options.storage};
   const requests = [], launches = [], internal = [], playlists = [], notices = [], logs = [], imageRequests = [], rows = [], scrolled = [], menus = [], modals = [];
   const timers = new Map();
@@ -83,15 +82,12 @@ function runtime(options = {}) {
       addEventListener() {}, location: {assign: url => {if (options.dispatchError) throw Error('fixture dispatch error'); launches.push(url);}}}};
   function $(arg) {return options.jquery ? options.jquery(arg) : arg === '.modal' ? {length: options.modalPresent ? 1 : 0} : jq(arg);}
   let code = fs.readFileSync(path.join(__dirname,'../docs/kp.js'),'utf8');
-  const exports = ['KP','KPInfuse','notifyDeviceIdentity','openAuthModal','closeAuthModal','parseFiles','pickStream','pickInfuseStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue','buildInfuseUrl','infuseFileUrl',
-    'dispatchInfuse','kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
+  const exports = ['KP','notifyDeviceIdentity','openAuthModal','closeAuthModal','parseFiles','pickStream','preferredFormat','proxyUrlFor','detectActualPlayer','numberValue',
+    'kpapi','component','redactDiagnostic','resourceInfo','thumbnailUrl','tmdbStillUrl','episodeImages',
     'tmdbSeriesId','sameSeries','findEpisode','loadImageCandidates',
     'mountKinoPubCard','kinoPubCardButton','addSettings'];
   code = code.replace('  startPlugin();', 'window.testAPI = {' + exports.join(',') + ',setProxy: function(v){kpProxyAvailable=v;},setFormat: function(v){formatOverride=v;},getPendingVoice: function(){return pendingVoice;}};');
   vm.runInNewContext(code,sandbox,{filename:'kp.js'});
-  // Playback fixtures model a device verified earlier in this app session.
-  // Auth-specific tests opt out and exercise the actual registration/checks.
-  if (options.infuseReady !== false && storage.kp_infuse_token_v1) sandbox.window.testAPI.KPInfuse.setDeviceReady();
   return {api: sandbox.window.testAPI, storage, requests, mediaRequests, launches, internal, playlists, notices, logs, timers, Lampa, imageRequests, rows, scrolled, menus, modals,
     tickAll() {const active = [...timers.values()]; timers.clear(); active.forEach(fn => fn());}};
 }

@@ -1,0 +1,37 @@
+{
+  "baseline": "19bcebf8aeb5b0c62d8551284ae91055e7a41453",
+  "byte_identical_helpers": [
+    "networkGuard",
+    "detectDeviceInfo",
+    "isTVOSNativePlayer",
+    "pickNativeStream",
+    "parseFiles",
+    "buildSubtitles",
+    "thumbnailUrl",
+    "tmdbStillUrl",
+    "episodeImages",
+    "tmdbSeriesId",
+    "sameSeries",
+    "findEpisode",
+    "loadImageCandidates",
+    "useManifestProxy",
+    "proxyUrlFor",
+    "setupKpPlayerPatch",
+    "mountKinoPubCard",
+    "kinoPubCardButton"
+  ],
+  "byte_identical_catalog_auth_helpers": [
+    "tokenAccess",
+    "tokenRefresh",
+    "saveTokens",
+    "setTokens",
+    "clearTokens",
+    "forgetDevice",
+    "rememberDevice",
+    "deviceCode",
+    "pollDeviceToken",
+    "refresh",
+    "api",
+    "apiPost"
+  ]
+}

@@ -1,35 +1,30 @@
 {
-  "version": "1.0.73-mx.22",
-  "prepared_at_utc": "2026-10-10",
-  "branch": "fix/infuse-device-native-audio-mx22",
-  "baseline_commit": "d660ee7df0eb58587a8594207681435e38b85261",
-  "bytes": 247791,
-  "sha256": "20b8a8990ecc54876748dfa98efe9b262be96d3158c7149114dee0ec7c236dd1",
-  "javascript_tests_passed": 130,
-  "tests_skipped": 0,
-  "real_upstream_adapter_tests_included": 8,
-  "lampa_source_revision": "7cb2ce0ce320070785ca0be4f43a14f638c1d7d8",
-  "lampa_assembly": "3.3.5",
-  "lampa_app_digital": 335,
-  "python_local_http_hls_tests_passed": 22,
-  "smoke_checks_passed": 20,
-  "syntax_passed": true,
-  "diff_check_passed": true,
-  "normal_infuse_delivery": "exact maximum HTTP file, dedicated grant",
-  "infuse_client_id": "xbmc, existing credentials unchanged",
-  "infuse_identity_verified_on_live_account": false,
-  "native_auto_delivery": "complete server hls4 field, no missing-format substitution",
-  "native_audio_switching_verified_on_device": false,
-  "native_shell_source_available": false,
-  "infuse_stop_cause_confirmed": false,
-  "device_playback_tested": false,
-  "external_media_probe_bytes": 0,
-  "settings_reset": false,
-  "shadowrocket_changed": false,
-  "publication_status": "prepared review branch; main and Pages unchanged; approval required for the concrete commit",
-  "rollback": "switch extension URL to mx.21; after deployment revert both mx.22 branch commits in reverse order",
-  "report": "audit/infuse-native-audio-mx22.md",
-  "device_checklist": "audit/apple-tv-verification-mx22.md",
-  "review_code_commit": "498d58bdd9b6eb353c1910e4d4c3b6402f5f3c1b",
-  "test_plugin_delivery": "https://cdn.jsdelivr.net/gh/aomikh/lampa_kinopub@498d58bdd9b6eb353c1910e4d4c3b6402f5f3c1b/docs/kp.js"
+  "version": "1.0.73-mx.23",
+  "baseline_commit": "19bcebf8aeb5b0c62d8551284ae91055e7a41453",
+  "file": "docs/kp.js",
+  "bytes": 224528,
+  "sha256": "7122bc5684a13b1f9cb18e232bb3a28417c8358c5684d400750e41064e34fe3b",
+  "plugin_url": "https://aomikh.github.io/lampa_kinopub/kp.js",
+  "publication_authorization": "Direct user request: remove Infuse changes and retain only main",
+  "javascript_tests": {
+    "passed": 87,
+    "failed": 0,
+    "skipped": 0,
+    "actual_core_adapters": 10
+  },
+  "python_tests": {
+    "passed": 22,
+    "failed": 0
+  },
+  "smoke_tests": {
+    "passed": 20,
+    "failed": 0
+  },
+  "removal_tests_before": {
+    "passed": 1,
+    "failed": 6
+  },
+  "lampa_source_commit": "7cb2ce0ce320070785ca0be4f43a14f638c1d7d8",
+  "device_validation": "Physical devices unavailable; native playback and audio switching unverified",
+  "rollback": "git revert the removal commit, then normal Pages deployment"
 }

@@ -43,3 +43,27 @@ for (const [player,[protocol,native]] of Object.entries(schemes)) {
     } else assert.deepEqual([...url.searchParams.keys()],['url']);
   });
 }
+
+for(const platform of ['apple_tv','apple']) {
+  test('upstream '+platform+' Infuse uses the unmodified core URL builder', {skip: !available && 'Set LAMPA_SOURCE_DIR'},()=>{
+    const module=fs.readFileSync(path.join(root,'src/core/infusePlayer.js'),'utf8');
+    const launches=[];
+    const context={encodeURIComponent,encodeURI,JSON,
+      Storage:{field:k=>k==='player'?'infuse':k==='infuse_launch_mode'?'play':''},
+      Torserver:{toPlayUrl:u=>u},Utils:{clearHtmlTags:s=>s},Activity:{active:()=>({movie:{title:'Fixture'}})},
+      Platform:{is:p=>p===platform,macOS:()=>false},Video:{verifyTube:()=>false},
+      Preroll:{show:(_d,cb)=>cb()},listener:{send(){}},window:{location:{assign:u=>launches.push(u)}}};
+    vm.createContext(context);
+    vm.runInContext(module.replace(/^import .+$/gm,'').replace('export default {','globalThis.InfusePlayer = {'),context);
+    vm.runInContext('let launch_player;\n'+['externalPlayer','prepareInfuseLaunch','launchExternalPlayer','start'].map(fn).join('\n'),context);
+    const data={url:'https://video.example/master.m3u8?sig=a+b%2B%26&x=?=',title:'Fixture',timeline:{time:237},
+      subtitles:[{url:'https://sub.example/caption.srt'}]};
+    context.start(data,undefined,()=>assert.fail('No browser decoder may launch'));
+    assert.equal(launches.length,1);
+    const url=new URL(launches[0]);
+    assert.equal(url.protocol,'infuse:');
+    assert.equal(url.searchParams.get('url'),data.url);
+    assert.equal(url.searchParams.get('position'),'237');
+    assert.equal(url.searchParams.get('sub'),'https://sub.example/caption.srt');
+  });
+}
